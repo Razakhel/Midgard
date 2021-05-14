@@ -431,6 +431,83 @@ file(
     ${MIDGARD_SRC}
 )
 
+#######################
+# Midgard - RaZ usage #
+#######################
+
+# Finding RaZ
+option(MIDGARD_BUILD_RAZ "Build RaZ alongside Midgard (requires downloading the submodule)" OFF)
+
+if (NOT MIDGARD_BUILD_RAZ)
+    set(RAZ_ROOT "C:/RaZ" CACHE PATH "Path to the RaZ installation")
+
+    set(RAZ_LIB_DIR "${RAZ_ROOT}/lib")
+
+    # Visual Studio having all the configurations from within the project, CMAKE_BUILD_TYPE is unknown at generation time
+    # Adding a link directory automatically creates anoter path to which is appended the $(Configuration) macro, which contains the build type
+    if (NOT MIDGARD_COMPILER_MSVC)
+        set(RAZ_LIB_DIR "${RAZ_LIB_DIR}/${CMAKE_BUILD_TYPE}")
+    endif ()
+
+    target_link_directories(Midgard PRIVATE "${RAZ_LIB_DIR}")
+    target_include_directories(Midgard PUBLIC "${RAZ_ROOT}/include")
+    target_compile_definitions(Midgard PRIVATE RAZ_USE_WINDOW) # Raz::Window is needed
+
+    # Additional linking flags
+    if (MIDGARD_PLATFORM_WINDOWS)
+        set(
+            MIDGARD_LINKER_FLAGS
+
+            ${MIDGARD_LINKER_FLAGS}
+            opengl32
+        )
+    elseif (MIDGARD_PLATFORM_LINUX)
+        set(
+            MIDGARD_LINKER_FLAGS
+
+            ${MIDGARD_LINKER_FLAGS}
+            dl
+            pthread
+            GL
+            X11
+            Xrandr
+            Xcursor
+            Xinerama
+            Xxf86vm
+        )
+    elseif (MIDGARD_PLATFORM_MAC)
+        find_package(OpenGL REQUIRED)
+
+        set(
+            MIDGARD_LINKER_FLAGS
+
+            ${MIDGARD_LINKER_FLAGS}
+            OpenGL::GL
+            "-framework OpenGL"
+            "-framework Cocoa"
+            "-framework IOKit"
+            "-framework CoreVideo"
+        )
+    endif ()
+else ()
+    set(RAZ_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/extern/RaZ")
+
+    if (EXISTS "${RAZ_ROOT}")
+        # No need to keep the examples, unit tests, documentation generation & installation
+        set(RAZ_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(RAZ_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(RAZ_GEN_DOC OFF CACHE BOOL "" FORCE)
+        set(RAZ_INSTALL OFF CACHE BOOL "" FORCE)
+
+        add_subdirectory("${RAZ_ROOT}")
+    else ()
+        message(FATAL_ERROR "Failed to find RaZ; the submodule must be downloaded")
+    endif ()
+endif ()
+
+target_compile_definitions(Midgard PRIVATE RAZ_ROOT="${RAZ_ROOT}/")
+target_link_libraries(Midgard PUBLIC RaZ)
+
 ###################
 # Midgard - Build #
 ###################
