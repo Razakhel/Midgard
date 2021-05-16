@@ -150,6 +150,31 @@ int main() {
 
   //meshComp.load();
 
+  /////////////
+  // Texture //
+  /////////////
+
+  Raz::Image img(terrainWidth, terrainHeight);
+  auto* imgData = static_cast<uint8_t*>(img.getDataPtr());
+
+  for (unsigned int j = 0; j < terrainHeight; ++j) {
+    for (unsigned int i = 0; i < terrainWidth; ++i) {
+      const float noiseValue = Raz::PerlinNoise::get2D(static_cast<float>(i) / 100.f, static_cast<float>(j) / 100.f, 8, true);
+      const Raz::Vec3b pixelValue = (noiseValue > 0.6f  ? Raz::Vec3b(255)                                                                              // Snow
+                                  : (noiseValue > 0.5f  ? Raz::Vec3b(static_cast<uint8_t>(127), static_cast<uint8_t>(127), static_cast<uint8_t>(127))  // Rock
+                                  : (noiseValue > 0.45f ? Raz::Vec3b(static_cast<uint8_t>(160), static_cast<uint8_t>(82), static_cast<uint8_t>(45))    // Ground
+                                  : (noiseValue > 0.3f  ? Raz::Vec3b(static_cast<uint8_t>(62), static_cast<uint8_t>(126), static_cast<uint8_t>(0))     // Grass
+                                  :                       Raz::Vec3b(static_cast<uint8_t>(0), static_cast<uint8_t>(0), static_cast<uint8_t>(255)))))); // Water
+
+      imgData[j * 3 * terrainWidth + i * 3]     = pixelValue.x();
+      imgData[j * 3 * terrainWidth + i * 3 + 1] = pixelValue.y();
+      imgData[j * 3 * terrainWidth + i * 3 + 2] = pixelValue.z();
+    }
+  }
+
+  img.save("terrainTest.png");
+  terrain.getComponent<Raz::Mesh>().getMaterials().front()->setBaseColorMap(Raz::Texture::create(std::move(img), 0));
+
   /////////
   // Sun //
   /////////
