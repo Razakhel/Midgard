@@ -1,4 +1,5 @@
 #include <RaZ/Application.hpp>
+#include <RaZ/Math/MathUtils.hpp>
 #include <RaZ/Math/PerlinNoise.hpp>
 #include <RaZ/Math/Transform.hpp>
 #include <RaZ/Render/Light.hpp>
@@ -9,6 +10,18 @@ using namespace Raz::Literals;
 
 constexpr int terrainWidth  = 512;
 constexpr int terrainHeight = 512;
+
+// Debug colors
+constexpr Raz::Vec3b gradientDown(97, 130, 234);
+constexpr Raz::Vec3b gradientMid(221, 220, 219);
+constexpr Raz::Vec3b gradientHigh(220, 94, 75);
+
+// Actual colors
+constexpr Raz::Vec3b waterColor(0, 0, 255);
+constexpr Raz::Vec3b grassColor(62, 126, 0);
+constexpr Raz::Vec3b groundColor(157, 110, 94);
+constexpr Raz::Vec3b rockColor(127, 127, 127);
+constexpr Raz::Vec3b snowColor(255, 255, 255);
 
 int main() {
   ////////////////////
@@ -40,7 +53,7 @@ int main() {
 #endif
 
   // Allowing to quit the application with the Escape key
-  window.addKeyCallback(Raz::Keyboard::ESCAPE, [&app] (float /* deltaTime */) { app.quit(); });
+  window.addKeyCallback(Raz::Keyboard::ESCAPE, [&app] (float /* deltaTime */) noexcept { app.quit(); });
 
   ///////////////////
   // Camera entity //
@@ -160,11 +173,13 @@ int main() {
   for (unsigned int j = 0; j < terrainHeight; ++j) {
     for (unsigned int i = 0; i < terrainWidth; ++i) {
       const float noiseValue = Raz::PerlinNoise::get2D(static_cast<float>(i) / 100.f, static_cast<float>(j) / 100.f, 8, true);
-      const Raz::Vec3b pixelValue = (noiseValue > 0.6f  ? Raz::Vec3b(255)                                                                              // Snow
-                                  : (noiseValue > 0.5f  ? Raz::Vec3b(static_cast<uint8_t>(127), static_cast<uint8_t>(127), static_cast<uint8_t>(127))  // Rock
-                                  : (noiseValue > 0.45f ? Raz::Vec3b(static_cast<uint8_t>(160), static_cast<uint8_t>(82), static_cast<uint8_t>(45))    // Ground
-                                  : (noiseValue > 0.3f  ? Raz::Vec3b(static_cast<uint8_t>(62), static_cast<uint8_t>(126), static_cast<uint8_t>(0))     // Grass
-                                  :                       Raz::Vec3b(static_cast<uint8_t>(0), static_cast<uint8_t>(0), static_cast<uint8_t>(255)))))); // Water
+      const Raz::Vec3b pixelValue = (noiseValue < 0.33f ? Raz::MathUtils::lerp(waterColor, grassColor, noiseValue * 3.f)
+                                  : (noiseValue < 0.5f  ? Raz::MathUtils::lerp(grassColor, groundColor, (noiseValue - 0.33f) * 5.75f)
+                                  : (noiseValue < 0.66f ? Raz::MathUtils::lerp(groundColor, rockColor, (noiseValue - 0.5f) * 6.f)
+                                                        : Raz::MathUtils::lerp(rockColor, snowColor, (noiseValue - 0.66f) * 3.f))));
+
+//      const Raz::Vec3b pixelValue = (noiseValue < 0.5f ? Raz::MathUtils::lerp(gradientDown, gradientMid, noiseValue * 2.f)
+//                                                       : Raz::MathUtils::lerp(gradientMid, gradientHigh, noiseValue * 2.f - 1.f));
 
       imgData[j * 3 * terrainWidth + i * 3]     = pixelValue.x();
       imgData[j * 3 * terrainWidth + i * 3 + 1] = pixelValue.y();
@@ -182,7 +197,7 @@ int main() {
   Raz::Entity& light = world.addEntity();
   light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,             // Type
                                  Raz::Vec3f(0.f, -1.f, -1.f).normalize(), // Direction
-                                 1.f,                                     // Energy
+                                 3.f,                                     // Energy
                                  Raz::Vec3f(1.f));                        // Color (RGB)
   light.addComponent<Raz::Transform>();
 
