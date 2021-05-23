@@ -59,7 +59,7 @@ int main() {
   auto& terrainMesh          = terrainEntity.addComponent<Raz::Mesh>();
   terrainEntity.addComponent<Raz::Transform>();
 
-  Terrain terrain(terrainMesh, terrainWidth, terrainHeight);
+  Terrain terrain(terrainMesh, terrainWidth, terrainHeight, 30.f);
   terrain.computeTexture();
 
   /////////
