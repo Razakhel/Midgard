@@ -61,6 +61,7 @@ int main() {
 
   Terrain terrain(terrainMesh, terrainWidth, terrainHeight, 30.f);
   terrain.computeTexture();
+  terrain.computeSlopeMap();
 
   /////////
   // Sun //

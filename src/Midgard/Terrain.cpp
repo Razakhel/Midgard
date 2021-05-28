@@ -43,6 +43,8 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
   // Computing normals
 
   for (unsigned int j = 1; j < m_depth - 1; ++j) {
+    const unsigned int depthStride = j * m_width;
+
     for (unsigned int i = 1; i < m_width - 1; ++i) {
       //                      topHeight (j - 1)
       //                           x
@@ -57,20 +59,19 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
       // Using finite differences
 
       const float topHeight   = terrainSubmesh.getVertices()[(j - 1) * m_width + i].position.y();
-      const float leftHeight  = terrainSubmesh.getVertices()[j * m_width + i - 1].position.y();
-      const float rightHeight = terrainSubmesh.getVertices()[j * m_width + i + 1].position.y();
+      const float leftHeight  = terrainSubmesh.getVertices()[depthStride + i - 1].position.y();
+      const float rightHeight = terrainSubmesh.getVertices()[depthStride + i + 1].position.y();
       const float botHeight   = terrainSubmesh.getVertices()[(j + 1) * m_width + i].position.y();
 
-      Raz::Vertex& midVertex = terrainSubmesh.getVertices()[j * m_width + i];
-      // TODO: check the Y coordinate: (maxDimension / coordDivider) * (m_heightFactor / coordDivider)?
+      Raz::Vertex& midVertex = terrainSubmesh.getVertices()[depthStride + i];
       midVertex.normal  = Raz::Vec3f(leftHeight - rightHeight, 1.f, topHeight - botHeight).normalize();
       midVertex.tangent = Raz::Vec3f(midVertex.normal.z(), midVertex.normal.x(), midVertex.normal.y());
 
       // Using cross products
 
 //      const Raz::Vec3f& topPos   = terrainSubmesh.getVertices()[(j - 1) * m_width + i].position;
-//      const Raz::Vec3f& leftPos  = terrainSubmesh.getVertices()[j * m_width + i - 1].position;
-//      const Raz::Vec3f& rightPos = terrainSubmesh.getVertices()[j * m_width + i + 1].position;
+//      const Raz::Vec3f& leftPos  = terrainSubmesh.getVertices()[depthStride + i - 1].position;
+//      const Raz::Vec3f& rightPos = terrainSubmesh.getVertices()[depthStride + i + 1].position;
 //      const Raz::Vec3f& botPos   = terrainSubmesh.getVertices()[(j + 1) * m_width + i].position;
 //
 //      //         topDir
@@ -79,7 +80,7 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
 //      //           v
 //      //         botDir
 //
-//      Raz::Vertex& midVertex = terrainSubmesh.getVertices()[j * m_width + i];
+//      Raz::Vertex& midVertex = terrainSubmesh.getVertices()[depthStride + i];
 //      const Raz::Vec3f topDir   = topPos - midVertex.position;
 //      const Raz::Vec3f leftDir  = leftPos - midVertex.position;
 //      const Raz::Vec3f rightDir = rightPos - midVertex.position;
@@ -142,13 +143,39 @@ void Terrain::computeTexture() const {
 //      const Raz::Vec3b pixelValue = (noiseValue < 0.5f ? Raz::MathUtils::lerp(gradientDown, gradientMid, noiseValue * 2.f)
 //                                                       : Raz::MathUtils::lerp(gradientMid, gradientHigh, noiseValue * 2.f - 1.f));
 
-      imgData[depthStride * 3 + i * 3]     = pixelValue.x();
-      imgData[depthStride * 3 + i * 3 + 1] = pixelValue.y();
-      imgData[depthStride * 3 + i * 3 + 2] = pixelValue.z();
+      const unsigned int dataStride = depthStride * 3 + i * 3;
+      imgData[dataStride]     = pixelValue.x();
+      imgData[dataStride + 1] = pixelValue.y();
+      imgData[dataStride + 2] = pixelValue.z();
     }
   }
 
-  img.save("terrainTest.png");
+  img.save("terrainTexture.png");
   m_mesh.getMaterials().front()->setBaseColorMap(Raz::Texture::create(std::move(img), 0));
   static_cast<Raz::MaterialCookTorrance&>(*m_mesh.getMaterials().front()).setMetallicMap(Raz::Texture::create(Raz::ColorPreset::BLACK, 2));
+}
+
+const Raz::Image& Terrain::computeSlopeMap() {
+  m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::DEPTH);
+  auto* imgData = static_cast<float*>(m_slopeMap.getDataPtr());
+
+  Raz::Submesh& terrainSubmesh = m_mesh.getSubmeshes().front();
+
+  for (unsigned int j = 1; j < m_depth - 1; ++j) {
+    const unsigned int depthStride = j * m_width;
+
+    for (unsigned int i = 1; i < m_width - 1; ++i) {
+      const float topHeight   = terrainSubmesh.getVertices()[(j - 1) * m_width + i].position.y();
+      const float leftHeight  = terrainSubmesh.getVertices()[depthStride + i - 1].position.y();
+      const float rightHeight = terrainSubmesh.getVertices()[depthStride + i + 1].position.y();
+      const float botHeight   = terrainSubmesh.getVertices()[(j + 1) * m_width + i].position.y();
+
+      const float length = Raz::Vec2f(leftHeight - rightHeight, topHeight - botHeight).computeLength();
+      imgData[depthStride + i] = length * 0.5f;
+    }
+  }
+
+  m_slopeMap.save("slopeMap.png");
+
+  return m_slopeMap;
 }
