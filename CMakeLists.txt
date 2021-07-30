@@ -512,6 +512,12 @@ target_link_libraries(Midgard PUBLIC RaZ)
 # Midgard - Build #
 ###################
 
+# If RaZ is built alongside Midgard, use its compiler flags' script
+if (MIDGARD_BUILD_RAZ)
+    include("${RAZ_ROOT}/cmake/CompilerFlags.cmake")
+    add_compiler_flags(Midgard PRIVATE)
+endif ()
+
 target_include_directories(Midgard PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if (NOT MIDGARD_COMPILER_MSVC)

@@ -23,7 +23,7 @@ int main() {
   // Rendering //
   ///////////////
 
-  auto& renderSystem = world.addSystem<Raz::RenderSystem>(1280, 720, "Midgard", Raz::WindowSetting::DEFAULT, 2);
+  auto& renderSystem = world.addSystem<Raz::RenderSystem>(1280u, 720u, "Midgard", Raz::WindowSetting::DEFAULT, 2);
 
   Raz::RenderPass& geometryPass = renderSystem.getGeometryPass();
   geometryPass.getProgram().setShaders(Raz::VertexShader(RAZ_ROOT + "shaders/common.vert"s),
@@ -60,8 +60,15 @@ int main() {
   terrainEntity.addComponent<Raz::Transform>();
 
   Terrain terrain(terrainMesh, terrainWidth, terrainHeight, 30.f);
-  terrain.computeTexture();
-  terrain.computeSlopeMap();
+
+  const Raz::Image& colorMap = terrain.computeColorMap();
+  colorMap.save("colorMap.png");
+
+  const Raz::Image& normalMap = terrain.computeNormalMap();
+  normalMap.save("normalMap.png");
+
+  const Raz::Image& slopeMap = terrain.computeSlopeMap();
+  slopeMap.save("slopeMap.png");
 
   /////////
   // Sun //
@@ -133,6 +140,36 @@ int main() {
     cameraTrans.rotate(-90_deg * yMove / window.getHeight(),
                        -90_deg * xMove / window.getWidth());
   });
+
+  /////////////
+  // Overlay //
+  /////////////
+
+  window.enableOverlay();
+
+  window.addOverlayLabel("Midgard");
+
+  window.addOverlaySeparator();
+
+  window.addOverlayLabel("Press WASD to fly the camera around,");
+  window.addOverlayLabel("Space/V to go up/down,");
+  window.addOverlayLabel("& Shift to move faster.");
+  window.addOverlayLabel("Hold the right mouse button to rotate the camera.");
+
+  window.addOverlaySeparator();
+
+  const Raz::Texture colorTexture(colorMap, 0);
+  const Raz::Texture normalTexture(normalMap, 1);
+  const Raz::Texture slopeTexture(slopeMap, 2);
+
+  window.addOverlayTexture(colorTexture, 150, 150);
+  window.addOverlayTexture(normalTexture, 150, 150);
+  window.addOverlayTexture(slopeTexture, 150, 150);
+
+  window.addOverlaySeparator();
+
+  window.addOverlayFrameTime("Frame time: %.3f ms/frame");
+  window.addOverlayFpsCounter("FPS: %.1f");
 
   //////////////////////////
   // Starting application //
