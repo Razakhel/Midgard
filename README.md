@@ -2,6 +2,16 @@
 
 Terrain &amp; landscape generator.
 
+# Gallery
+
+![Perlin fBm noise & gradient colors](https://imgur.com/Kj7BMNc.png)
+
+![Warping noise](https://imgur.com/QAWsvhB.png)
+
+![Sun & fog](https://imgur.com/u37DbIK.png)
+
+More progress screenshots are available on the wiki's [milestones page](https://github.com/Razakhel/Midgard/wiki/Milestones).
+
 # Resources
 
 - Paris et al. (2020) - [Modeling Rocky Scenery using Implicit Blocks](https://hal.archives-ouvertes.fr/hal-02926218/file/2020-rocks-author.pdf) ([code](https://github.com/aparis69/Rock-fracturing))
