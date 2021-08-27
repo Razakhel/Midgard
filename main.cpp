@@ -51,6 +51,37 @@ int main() {
   auto& cameraComp    = camera.addComponent<Raz::Camera>(window.getWidth(), window.getHeight(), 45_deg, 0.1f, 1000.f);
   auto& cameraTrans   = camera.addComponent<Raz::Transform>(Raz::Vec3f(0.f, 30.f, -120.f));
 
+  /////////
+  // Sun //
+  /////////
+
+  Raz::Entity& light = world.addEntity();
+  light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,             // Type
+                                 Raz::Vec3f(0.f, -1.f, -1.f).normalize(), // Direction
+                                 3.f,                                     // Energy
+                                 Raz::Vec3f(1.f));                        // Color (RGB)
+  light.addComponent<Raz::Transform>();
+
+  //////////////
+  // Fog pass //
+  //////////////
+
+  Raz::RenderGraph& renderGraph = renderSystem.getRenderGraph();
+
+  const Raz::Texture& depthBuffer = renderGraph.addTextureBuffer(window.getWidth(), window.getHeight(), 0, Raz::ImageColorspace::DEPTH);
+  const Raz::Texture& colorBuffer = renderGraph.addTextureBuffer(window.getWidth(), window.getHeight(), 1, Raz::ImageColorspace::RGB);
+
+  geometryPass.addWriteTexture(depthBuffer);
+  geometryPass.addWriteTexture(colorBuffer);
+
+  Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader(MIDGARD_ROOT + "shaders/fog.frag"s));
+
+  fogPass.addReadTexture(depthBuffer, "uniSceneBuffers.depth");
+  fogPass.addReadTexture(colorBuffer, "uniSceneBuffers.color");
+  fogPass.getProgram().sendUniform("uniSunDir", light.getComponent<Raz::Light>().getDirection());
+
+  geometryPass.addChildren(fogPass);
+
   /////////////
   // Terrain //
   /////////////
@@ -69,17 +100,6 @@ int main() {
 
   const Raz::Image& slopeMap = terrain.computeSlopeMap();
   slopeMap.save("slopeMap.png");
-
-  /////////
-  // Sun //
-  /////////
-
-  Raz::Entity& light = world.addEntity();
-  light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,             // Type
-                                 Raz::Vec3f(0.f, -1.f, -1.f).normalize(), // Direction
-                                 3.f,                                     // Energy
-                                 Raz::Vec3f(1.f));                        // Color (RGB)
-  light.addComponent<Raz::Transform>();
 
   /////////////////////
   // Camera controls //
@@ -165,6 +185,12 @@ int main() {
   window.addOverlayTexture(colorTexture, 150, 150);
   window.addOverlayTexture(normalTexture, 150, 150);
   window.addOverlayTexture(slopeTexture, 150, 150);
+
+  window.addOverlaySeparator();
+
+  window.addOverlaySlider("Fog density", [&fogPass] (float value) {
+    fogPass.getProgram().sendUniform("uniFogDensity", value);
+  }, 0.f, 1.f, 0.2f);
 
   window.addOverlaySeparator();
 
