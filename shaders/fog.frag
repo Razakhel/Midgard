@@ -18,7 +18,7 @@ layout(std140) uniform uboCameraMatrices {
 
 uniform Buffers uniSceneBuffers;
 uniform vec3 uniSunDir;
-uniform float uniFogDensity = 0.2;
+uniform float uniFogDensity = 0.1;
 
 layout(location = 0) out vec4 fragColor;
 

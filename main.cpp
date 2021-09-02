@@ -4,6 +4,7 @@
 #include <RaZ/Math/Transform.hpp>
 #include <RaZ/Render/Light.hpp>
 #include <RaZ/Render/RenderSystem.hpp>
+#include <RaZ/Utils/Logger.hpp>
 
 using namespace std::literals;
 using namespace Raz::Literals;
@@ -18,6 +19,8 @@ int main() {
 
   Raz::Application app;
   Raz::World& world = app.addWorld(3);
+
+  Raz::Logger::setLoggingLevel(Raz::LoggingLevel::ALL);
 
   ///////////////
   // Rendering //
@@ -90,7 +93,7 @@ int main() {
   auto& terrainMesh          = terrainEntity.addComponent<Raz::Mesh>();
   terrainEntity.addComponent<Raz::Transform>();
 
-  Terrain terrain(terrainMesh, terrainWidth, terrainHeight, 30.f);
+  Terrain terrain(terrainMesh, terrainWidth, terrainHeight, 30.f, 3.f);
 
   const Raz::Image& colorMap = terrain.computeColorMap();
   colorMap.save("colorMap.png");
@@ -178,9 +181,9 @@ int main() {
 
   window.addOverlaySeparator();
 
-  const Raz::Texture colorTexture(colorMap, 0);
-  const Raz::Texture normalTexture(normalMap, 1);
-  const Raz::Texture slopeTexture(slopeMap, 2);
+  Raz::Texture colorTexture(colorMap, 0);
+  Raz::Texture normalTexture(normalMap, 1);
+  Raz::Texture slopeTexture(slopeMap, 2);
 
   window.addOverlayTexture(colorTexture, 150, 150);
   window.addOverlayTexture(normalTexture, 150, 150);
@@ -188,9 +191,21 @@ int main() {
 
   window.addOverlaySeparator();
 
+  window.addOverlaySlider("Height factor", [&terrain, &normalTexture, &slopeTexture] (float value) {
+    terrain.setHeightFactor(value);
+    normalTexture.load(terrain.computeNormalMap());
+    slopeTexture.load(terrain.computeSlopeMap());
+  }, 0.001f, 50.f, 30.f);
+
+  window.addOverlaySlider("Flatness", [&terrain, &normalTexture, &slopeTexture] (float value) {
+    terrain.setFlatness(value);
+    normalTexture.load(terrain.computeNormalMap());
+    slopeTexture.load(terrain.computeSlopeMap());
+  }, 1.f, 10.f, 3.f);
+
   window.addOverlaySlider("Fog density", [&fogPass] (float value) {
     fogPass.getProgram().sendUniform("uniFogDensity", value);
-  }, 0.f, 1.f, 0.2f);
+  }, 0.f, 1.f, 0.1f);
 
   window.addOverlaySeparator();
 

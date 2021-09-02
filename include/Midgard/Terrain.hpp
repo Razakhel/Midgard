@@ -9,22 +9,35 @@ namespace Raz { class Mesh; }
 
 class Terrain {
 public:
-  explicit Terrain(Raz::Mesh& mesh) : m_mesh{ mesh } {}
-  Terrain(Raz::Mesh& mesh, unsigned int width, unsigned int height, float heightFactor) : Terrain(mesh) { generate(width, height, heightFactor); }
+  explicit Terrain(Raz::Mesh& mesh);
+  Terrain(Raz::Mesh& mesh, unsigned int width, unsigned int height, float heightFactor, float flatness)
+    : Terrain(mesh) { generate(width, height, heightFactor, flatness); }
+  Terrain(const Terrain&) = delete;
+  Terrain(Terrain&&) noexcept = default;
 
-  void generate(unsigned int width, unsigned int height, float heightFactor);
+  void setHeightFactor(float heightFactor) { setParameters(heightFactor, m_flatness); }
+  void setFlatness(float flatness) { setParameters(m_heightFactor, flatness); }
+  void setParameters(float heightFactor, float flatness);
+
+  void generate(unsigned int width, unsigned int height, float heightFactor, float flatness);
   const Raz::Image& computeColorMap();
   const Raz::Image& computeNormalMap();
   const Raz::Image& computeSlopeMap();
 
+  Terrain& operator=(const Terrain&) = delete;
+  Terrain& operator=(Terrain&&) noexcept = delete;
+
 private:
   void computeNormals();
+  void remapVertices(float newHeightFactor, float newFlatness);
 
   Raz::Mesh& m_mesh;
 
   unsigned int m_width {};
   unsigned int m_depth {};
   float m_heightFactor {};
+  float m_flatness {};
+  float m_invFlatness {};
 
   Raz::Image m_colorMap {};
   Raz::Image m_normalMap {};
