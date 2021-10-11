@@ -5,13 +5,13 @@
 
 #include <RaZ/Utils/Image.hpp>
 
-namespace Raz { class Mesh; }
+namespace Raz { class Entity; }
 
 class Terrain {
 public:
-  explicit Terrain(Raz::Mesh& mesh);
-  Terrain(Raz::Mesh& mesh, unsigned int width, unsigned int height, float heightFactor, float flatness)
-    : Terrain(mesh) { generate(width, height, heightFactor, flatness); }
+  explicit Terrain(Raz::Entity& entity);
+  Terrain(Raz::Entity& entity, unsigned int width, unsigned int height, float heightFactor, float flatness)
+    : Terrain(entity) { generate(width, height, heightFactor, flatness); }
   Terrain(const Terrain&) = delete;
   Terrain(Terrain&&) noexcept = default;
 
@@ -31,7 +31,7 @@ private:
   void computeNormals();
   void remapVertices(float newHeightFactor, float newFlatness);
 
-  Raz::Mesh& m_mesh;
+  Raz::Entity& m_entity;
 
   unsigned int m_width {};
   unsigned int m_depth {};

@@ -1,8 +1,11 @@
 #include "Midgard/Terrain.hpp"
 
+#include <RaZ/Entity.hpp>
+#include <RaZ/Data/Mesh.hpp>
 #include <RaZ/Math/MathUtils.hpp>
 #include <RaZ/Math/PerlinNoise.hpp>
-#include <RaZ/Render/Mesh.hpp>
+#include <RaZ/Math/Transform.hpp>
+#include <RaZ/Render/MeshRenderer.hpp>
 #include <RaZ/Utils/Logger.hpp>
 
 constexpr Raz::Vec3b waterColor(0, 0, 255);
@@ -14,22 +17,30 @@ constexpr Raz::Vec3b snowColor(255, 255, 255);
 namespace {
 
 inline void checkParameters(float& heightFactor, float& flatness) {
-  if (heightFactor <= 0.f)
-    Raz::Logger::warn("Terrain height factor can't be 0 or negative; remapping to +epsilon.");
+  if (heightFactor <= 0.f) {
+    Raz::Logger::warn("[Terrain] Height factor can't be 0 or negative; remapping to +epsilon.");
+    heightFactor = std::numeric_limits<float>::epsilon();
+  }
 
-  if (flatness <= 0.f)
-    Raz::Logger::warn("Terrain flatness can't be 0 or negative; remapping to +epsilon.");
-
-  heightFactor = std::max(heightFactor, std::numeric_limits<float>::epsilon());
-  flatness     = std::max(flatness, std::numeric_limits<float>::epsilon());
+  if (flatness <= 0.f) {
+    Raz::Logger::warn("[Terrain] Flatness can't be 0 or negative; remapping to +epsilon.");
+    flatness = std::numeric_limits<float>::epsilon();
+  }
 }
 
 } // namespace
 
-Terrain::Terrain(Raz::Mesh& mesh) : m_mesh{ mesh } {
-  auto& material = static_cast<Raz::MaterialCookTorrance&>(*m_mesh.getMaterials().front());
-  material.setMetallicFactor(0.f);
-  material.setRoughnessFactor(0.f);
+Terrain::Terrain(Raz::Entity& entity) : m_entity{ entity } {
+  if (!m_entity.hasComponent<Raz::Transform>())
+    m_entity.addComponent<Raz::Transform>();
+
+  if (!m_entity.hasComponent<Raz::Mesh>())
+    m_entity.addComponent<Raz::Mesh>();
+
+  if (!m_entity.hasComponent<Raz::MeshRenderer>())
+    m_entity.addComponent<Raz::MeshRenderer>();
+
+  m_entity.getComponent<Raz::MeshRenderer>().setMaterial(Raz::MaterialCookTorrance::create(Raz::Vec3f(1.f), 0.f, 0.f));
 }
 
 void Terrain::setParameters(float heightFactor, float flatness) {
@@ -51,9 +62,12 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
   m_flatness     = flatness;
   m_invFlatness  = 1.f / flatness;
 
+  auto& mesh = m_entity.getComponent<Raz::Mesh>();
+  mesh.getSubmeshes().resize(1);
+
   // Computing vertices
 
-  std::vector<Raz::Vertex>& vertices = m_mesh.getSubmeshes().front().getVertices();
+  std::vector<Raz::Vertex>& vertices = mesh.getSubmeshes().front().getVertices();
   vertices.resize(m_width * m_depth);
 
   for (unsigned int j = 0; j < m_depth; ++j) {
@@ -77,7 +91,7 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
 
   // Computing indices
 
-  std::vector<unsigned int>& indices = m_mesh.getSubmeshes().front().getTriangleIndices();
+  std::vector<unsigned int>& indices = mesh.getSubmeshes().front().getTriangleIndices();
   indices.resize(vertices.size() * 6);
 
   for (unsigned int j = 0; j < m_depth - 1; ++j) {
@@ -105,14 +119,14 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
     }
   }
 
-  m_mesh.load();
+  m_entity.getComponent<Raz::MeshRenderer>().load(mesh);
 }
 
 const Raz::Image& Terrain::computeColorMap() {
   m_colorMap = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB);
   auto* imgData = static_cast<uint8_t*>(m_colorMap.getDataPtr());
 
-  const std::vector<Raz::Vertex>& vertices = m_mesh.getSubmeshes().front().getVertices();
+  const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 0; j < m_depth; ++j) {
     const unsigned int depthStride = j * m_width;
@@ -131,7 +145,7 @@ const Raz::Image& Terrain::computeColorMap() {
     }
   }
 
-  auto& material = static_cast<Raz::MaterialCookTorrance&>(*m_mesh.getMaterials().front());
+  auto& material = static_cast<Raz::MaterialCookTorrance&>(*m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front());
   material.setBaseColorMap(Raz::Texture::create(m_colorMap, 0));
 
   return m_colorMap;
@@ -141,7 +155,7 @@ const Raz::Image& Terrain::computeNormalMap() {
   m_normalMap = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB);
   auto* imgData = static_cast<uint8_t*>(m_normalMap.getDataPtr());
 
-  const std::vector<Raz::Vertex>& vertices = m_mesh.getSubmeshes().front().getVertices();
+  const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 0; j < m_depth; ++j) {
     const unsigned int depthStride = j * m_width;
@@ -163,7 +177,7 @@ const Raz::Image& Terrain::computeSlopeMap() {
   m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::DEPTH);
   auto* imgData = static_cast<float*>(m_slopeMap.getDataPtr());
 
-  const std::vector<Raz::Vertex>& vertices = m_mesh.getSubmeshes().front().getVertices();
+  const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 1; j < m_depth - 1; ++j) {
     const unsigned int depthStride = j * m_width;
@@ -183,7 +197,7 @@ const Raz::Image& Terrain::computeSlopeMap() {
 }
 
 void Terrain::computeNormals() {
-  std::vector<Raz::Vertex>& vertices = m_mesh.getSubmeshes().front().getVertices();
+  std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 1; j < m_depth - 1; ++j) {
     const unsigned int depthStride = j * m_width;
@@ -240,11 +254,13 @@ void Terrain::computeNormals() {
 }
 
 void Terrain::remapVertices(float newHeightFactor, float newFlatness) {
-  for (Raz::Vertex& vertex : m_mesh.getSubmeshes().front().getVertices()) {
+  auto& mesh = m_entity.getComponent<Raz::Mesh>();
+
+  for (Raz::Vertex& vertex : mesh.getSubmeshes().front().getVertices()) {
     const float baseHeight = std::pow(vertex.position.y() / m_heightFactor, m_invFlatness);
     vertex.position.y() = std::pow(baseHeight, newFlatness) * newHeightFactor;
   }
 
   computeNormals();
-  m_mesh.load();
+  m_entity.getComponent<Raz::MeshRenderer>().load(mesh);
 }

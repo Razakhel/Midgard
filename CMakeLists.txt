@@ -24,10 +24,6 @@ target_compile_features(Midgard PRIVATE cxx_std_17)
 # Detect whether Emscripten is being used
 if (CMAKE_CXX_COMPILER MATCHES "/em\\+\\+.*$")
     set(MIDGARD_USE_EMSCRIPTEN ON)
-    set(CMAKE_AR "${CMAKE_C_COMPILER}")
-    set(CMAKE_STATIC_LIBRARY_SUFFIX ".bc")
-    set(CMAKE_C_CREATE_STATIC_LIBRARY "<CMAKE_AR> -o <TARGET> <LINK_FLAGS> <OBJECTS>")
-    set(CMAKE_CXX_CREATE_STATIC_LIBRARY "<CMAKE_AR> -o <TARGET> <LINK_FLAGS> <OBJECTS>")
 else ()
     set(MIDGARD_USE_EMSCRIPTEN OFF)
 endif ()
@@ -248,29 +244,6 @@ elseif (MIDGARD_COMPILER_CLANG)
         )
     endif ()
 
-    if (MIDGARD_USE_EMSCRIPTEN)
-        set(
-            MIDGARD_COMPILER_FLAGS
-
-            ${MIDGARD_COMPILER_FLAGS}
-            "SHELL:-s USE_GLFW=3"
-            "SHELL:-s USE_LIBPNG=1"
-        )
-
-        set(
-            MIDGARD_LINKER_FLAGS
-
-            ${MIDGARD_LINKER_FLAGS}
-            "-s USE_LIBPNG=1"
-            "-s USE_GLFW=3"
-            "-s USE_WEBGL2=1"
-            "-s OFFSCREEN_FRAMEBUFFER=1"
-            "-s OFFSCREENCANVAS_SUPPORT=1"
-            "-s DOUBLE_MODE=0"
-            glfw
-        )
-    endif ()
-
     # Disabling some warnings available since Clang 5
     if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5)
         set(
@@ -337,6 +310,21 @@ if (MIDGARD_COMPILER_MSVC OR MIDGARD_COMPILER_CLANG_CL)
         NOMINMAX # Preventing definitions of min & max macros
         _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING # Ignoring std::codecvt deprecation warnings
     )
+endif ()
+
+if (MIDGARD_USE_EMSCRIPTEN)
+    target_compile_options(Midgard PRIVATE "SHELL:-s USE_LIBPNG=1")
+
+    target_link_options(
+        Midgard
+
+        PUBLIC
+
+        "SHELL:-s USE_GLFW=3"
+        "SHELL:-s USE_LIBPNG=1"
+    )
+
+    target_link_libraries(Midgard PRIVATE glfw)
 endif ()
 
 ##########################

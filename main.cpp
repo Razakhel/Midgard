@@ -89,11 +89,7 @@ int main() {
   // Terrain //
   /////////////
 
-  Raz::Entity& terrainEntity = world.addEntity();
-  auto& terrainMesh          = terrainEntity.addComponent<Raz::Mesh>();
-  terrainEntity.addComponent<Raz::Transform>();
-
-  Terrain terrain(terrainMesh, terrainWidth, terrainHeight, 30.f, 3.f);
+  Terrain terrain(world.addEntity(), terrainWidth, terrainHeight, 30.f, 3.f);
 
   const Raz::Image& colorMap = terrain.computeColorMap();
   colorMap.save("colorMap.png");
@@ -168,49 +164,45 @@ int main() {
   // Overlay //
   /////////////
 
-  window.enableOverlay();
+  Raz::OverlayWindow& overlayWindow = window.addOverlayWindow("Midgard");
 
-  window.addOverlayLabel("Midgard");
+  overlayWindow.addLabel("Press WASD to fly the camera around,");
+  overlayWindow.addLabel("Space/V to go up/down,");
+  overlayWindow.addLabel("& Shift to move faster.");
+  overlayWindow.addLabel("Hold the right mouse button to rotate the camera.");
 
-  window.addOverlaySeparator();
-
-  window.addOverlayLabel("Press WASD to fly the camera around,");
-  window.addOverlayLabel("Space/V to go up/down,");
-  window.addOverlayLabel("& Shift to move faster.");
-  window.addOverlayLabel("Hold the right mouse button to rotate the camera.");
-
-  window.addOverlaySeparator();
+  overlayWindow.addSeparator();
 
   Raz::Texture colorTexture(colorMap, 0);
   Raz::Texture normalTexture(normalMap, 1);
   Raz::Texture slopeTexture(slopeMap, 2);
 
-  window.addOverlayTexture(colorTexture, 150, 150);
-  window.addOverlayTexture(normalTexture, 150, 150);
-  window.addOverlayTexture(slopeTexture, 150, 150);
+  overlayWindow.addTexture(colorTexture, 150, 150);
+  overlayWindow.addTexture(normalTexture, 150, 150);
+  overlayWindow.addTexture(slopeTexture, 150, 150);
 
-  window.addOverlaySeparator();
+  overlayWindow.addSeparator();
 
-  window.addOverlaySlider("Height factor", [&terrain, &normalTexture, &slopeTexture] (float value) {
+  overlayWindow.addSlider("Height factor", [&terrain, &normalTexture, &slopeTexture] (float value) {
     terrain.setHeightFactor(value);
     normalTexture.load(terrain.computeNormalMap());
     slopeTexture.load(terrain.computeSlopeMap());
   }, 0.001f, 50.f, 30.f);
 
-  window.addOverlaySlider("Flatness", [&terrain, &normalTexture, &slopeTexture] (float value) {
+  overlayWindow.addSlider("Flatness", [&terrain, &normalTexture, &slopeTexture] (float value) {
     terrain.setFlatness(value);
     normalTexture.load(terrain.computeNormalMap());
     slopeTexture.load(terrain.computeSlopeMap());
   }, 1.f, 10.f, 3.f);
 
-  window.addOverlaySlider("Fog density", [&fogPass] (float value) {
+  overlayWindow.addSlider("Fog density", [&fogPass] (float value) {
     fogPass.getProgram().sendUniform("uniFogDensity", value);
   }, 0.f, 1.f, 0.1f);
 
-  window.addOverlaySeparator();
+  overlayWindow.addSeparator();
 
-  window.addOverlayFrameTime("Frame time: %.3f ms/frame");
-  window.addOverlayFpsCounter("FPS: %.1f");
+  overlayWindow.addFrameTime("Frame time: %.3f ms/frame");
+  overlayWindow.addFpsCounter("FPS: %.1f");
 
   //////////////////////////
   // Starting application //
