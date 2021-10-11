@@ -454,3 +454,14 @@ endif ()
 
 # Compiling Midgard's sources
 target_sources(Midgard PRIVATE ${MIDGARD_FILES})
+
+##########################
+# Midgard - Installation #
+##########################
+
+# Installing the executable
+if (MIDGARD_PLATFORM_WINDOWS)
+    set(CMAKE_INSTALL_PREFIX "C:/Midgard")
+endif ()
+
+install(TARGETS Midgard DESTINATION "${CMAKE_INSTALL_PREFIX}")
