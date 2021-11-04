@@ -418,22 +418,37 @@ else ()
         set(RAZ_INSTALL OFF CACHE BOOL "" FORCE)
 
         add_subdirectory("${RAZ_ROOT}")
+
+        # Use RaZ's compiler flags' script
+        include("${RAZ_ROOT}/cmake/CompilerFlags.cmake")
+        add_compiler_flags(Midgard PRIVATE)
     else ()
         message(FATAL_ERROR "Failed to find RaZ; the submodule must be downloaded")
     endif ()
 endif ()
 
-target_compile_definitions(Midgard PRIVATE RAZ_ROOT="${RAZ_ROOT}/")
+if (MIDGARD_USE_EMSCRIPTEN)
+    target_compile_definitions(Midgard PRIVATE RAZ_ROOT="/")
+else ()
+    target_compile_definitions(Midgard PRIVATE RAZ_ROOT="${RAZ_ROOT}/")
+endif ()
 target_link_libraries(Midgard PUBLIC RaZ)
 
 ###################
 # Midgard - Build #
 ###################
 
-# If RaZ is built alongside Midgard, use its compiler flags' script
-if (MIDGARD_BUILD_RAZ)
-    include("${RAZ_ROOT}/cmake/CompilerFlags.cmake")
-    add_compiler_flags(Midgard PRIVATE)
+if (MIDGARD_USE_EMSCRIPTEN)
+    set_target_properties(Midgard PROPERTIES SUFFIX ".html")
+
+    target_link_options(
+        Midgard
+
+        PRIVATE
+
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/shaders/opengles3@shaders"
+        "SHELL:--preload-file ${RAZ_ROOT}/shaders/opengles3@shaders"
+    )
 endif ()
 
 target_include_directories(Midgard PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
