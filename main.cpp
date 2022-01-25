@@ -44,17 +44,17 @@ int main() {
 
     Raz::Entity& camera = world.addEntity();
     auto& cameraComp    = camera.addComponent<Raz::Camera>(window.getWidth(), window.getHeight(), 45_deg, 0.1f, 1000.f);
-    auto& cameraTrans   = camera.addComponent<Raz::Transform>(Raz::Vec3f(0.f, 30.f, -120.f));
+    auto& cameraTrans   = camera.addComponent<Raz::Transform>(Raz::Vec3f(0.f, 30.f, 120.f));
 
     /////////
     // Sun //
     /////////
 
     Raz::Entity& light = world.addEntity();
-    light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,             // Type
-                                   Raz::Vec3f(0.f, -1.f, -1.f).normalize(), // Direction
-                                   3.f,                                     // Energy
-                                   Raz::Vec3f(1.f));                        // Color (RGB)
+    light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,            // Type
+                                   Raz::Vec3f(0.f, -1.f, 1.f).normalize(), // Direction
+                                   3.f,                                    // Energy
+                                   Raz::Vec3f(1.f));                       // Color (RGB)
     light.addComponent<Raz::Transform>();
 
     //////////////
@@ -109,18 +109,18 @@ int main() {
       cameraTrans.move(0.f, (-10.f * deltaTime) * cameraSpeed, 0.f);
     });
     window.addKeyCallback(Raz::Keyboard::W, [&cameraTrans, &cameraComp, &cameraSpeed] (float deltaTime) {
-      const float moveVal = (10.f * deltaTime) * cameraSpeed;
-
-      cameraTrans.move(0.f, 0.f, moveVal);
-      cameraComp.setOrthoBoundX(cameraComp.getOrthoBoundX() - moveVal);
-      cameraComp.setOrthoBoundY(cameraComp.getOrthoBoundY() - moveVal);
-    });
-    window.addKeyCallback(Raz::Keyboard::S, [&cameraTrans, &cameraComp, &cameraSpeed] (float deltaTime) {
       const float moveVal = (-10.f * deltaTime) * cameraSpeed;
 
       cameraTrans.move(0.f, 0.f, moveVal);
-      cameraComp.setOrthoBoundX(cameraComp.getOrthoBoundX() - moveVal);
-      cameraComp.setOrthoBoundY(cameraComp.getOrthoBoundY() - moveVal);
+      cameraComp.setOrthoBoundX(cameraComp.getOrthoBoundX() + moveVal);
+      cameraComp.setOrthoBoundY(cameraComp.getOrthoBoundY() + moveVal);
+    });
+    window.addKeyCallback(Raz::Keyboard::S, [&cameraTrans, &cameraComp, &cameraSpeed] (float deltaTime) {
+      const float moveVal = (10.f * deltaTime) * cameraSpeed;
+
+      cameraTrans.move(0.f, 0.f, moveVal);
+      cameraComp.setOrthoBoundX(cameraComp.getOrthoBoundX() + moveVal);
+      cameraComp.setOrthoBoundY(cameraComp.getOrthoBoundY() + moveVal);
     });
     window.addKeyCallback(Raz::Keyboard::A, [&cameraTrans, &cameraSpeed] (float deltaTime) {
       cameraTrans.move((-10.f * deltaTime) * cameraSpeed, 0.f, 0.f);
@@ -157,45 +157,45 @@ int main() {
     // Overlay //
     /////////////
 
-    Raz::OverlayWindow& overlayWindow = window.addOverlayWindow("Midgard");
+    Raz::OverlayWindow& overlay = window.getOverlay().addWindow("Midgard", Raz::Vec2f(-1.f));
 
-    overlayWindow.addLabel("Press WASD to fly the camera around,");
-    overlayWindow.addLabel("Space/V to go up/down,");
-    overlayWindow.addLabel("& Shift to move faster.");
-    overlayWindow.addLabel("Hold the right mouse button to rotate the camera.");
+    overlay.addLabel("Press WASD to fly the camera around,");
+    overlay.addLabel("Space/V to go up/down,");
+    overlay.addLabel("& Shift to move faster.");
+    overlay.addLabel("Hold the right mouse button to rotate the camera.");
 
-    overlayWindow.addSeparator();
+    overlay.addSeparator();
 
     Raz::Texture colorTexture(colorMap, 0);
     Raz::Texture normalTexture(normalMap, 1);
     Raz::Texture slopeTexture(slopeMap, 2);
 
-    overlayWindow.addTexture(colorTexture, 150, 150);
-    overlayWindow.addTexture(normalTexture, 150, 150);
-    overlayWindow.addTexture(slopeTexture, 150, 150);
+    overlay.addTexture(colorTexture, 150, 150);
+    overlay.addTexture(normalTexture, 150, 150);
+    overlay.addTexture(slopeTexture, 150, 150);
 
-    overlayWindow.addSeparator();
+    overlay.addSeparator();
 
-    overlayWindow.addSlider("Height factor", [&terrain, &normalTexture, &slopeTexture] (float value) {
+    overlay.addSlider("Height factor", [&terrain, &normalTexture, &slopeTexture] (float value) {
       terrain.setHeightFactor(value);
       normalTexture.load(terrain.computeNormalMap());
       slopeTexture.load(terrain.computeSlopeMap());
     }, 0.001f, 50.f, 30.f);
 
-    overlayWindow.addSlider("Flatness", [&terrain, &normalTexture, &slopeTexture] (float value) {
+    overlay.addSlider("Flatness", [&terrain, &normalTexture, &slopeTexture] (float value) {
       terrain.setFlatness(value);
       normalTexture.load(terrain.computeNormalMap());
       slopeTexture.load(terrain.computeSlopeMap());
     }, 1.f, 10.f, 3.f);
 
-    overlayWindow.addSlider("Fog density", [&fogPass] (float value) {
+    overlay.addSlider("Fog density", [&fogPass] (float value) {
       fogPass.getProgram().sendUniform("uniFogDensity", value);
     }, 0.f, 1.f, 0.1f);
 
-    overlayWindow.addSeparator();
+    overlay.addSeparator();
 
-    overlayWindow.addFrameTime("Frame time: %.3f ms/frame");
-    overlayWindow.addFpsCounter("FPS: %.1f");
+    overlay.addFrameTime("Frame time: %.3f ms/frame");
+    overlay.addFpsCounter("FPS: %.1f");
 
     //////////////////////////
     // Starting application //

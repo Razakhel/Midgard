@@ -111,10 +111,10 @@ void Terrain::generate(unsigned int width, unsigned int depth, float heightFacto
       const unsigned int finalIndex = (depthIndex + i) * 6;
 
       indices[finalIndex    ] = j * m_width + i;
-      indices[finalIndex + 1] = j * m_width + i + 1;
-      indices[finalIndex + 2] = (j + 1) * m_width + i;
-      indices[finalIndex + 3] = (j + 1) * m_width + i;
-      indices[finalIndex + 4] = j * m_width + i + 1;
+      indices[finalIndex + 1] = (j + 1) * m_width + i;
+      indices[finalIndex + 2] = j * m_width + i + 1;
+      indices[finalIndex + 3] = j * m_width + i + 1;
+      indices[finalIndex + 4] = (j + 1) * m_width + i;
       indices[finalIndex + 5] = (j + 1) * m_width + i + 1;
     }
   }
@@ -170,7 +170,7 @@ const Raz::Image& Terrain::computeNormalMap() {
 }
 
 const Raz::Image& Terrain::computeSlopeMap() {
-  m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::DEPTH);
+  m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::GRAY, Raz::ImageDataType::FLOAT);
   auto* imgData = static_cast<float*>(m_slopeMap.getDataPtr());
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
