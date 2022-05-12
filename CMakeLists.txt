@@ -432,7 +432,15 @@ if (MIDGARD_USE_EMSCRIPTEN)
 else ()
     target_compile_definitions(Midgard PRIVATE RAZ_ROOT="${RAZ_ROOT}/")
 endif ()
+
 target_link_libraries(Midgard PUBLIC RaZ)
+
+#############################
+# Midgard - Prepare shaders #
+#############################
+
+include(EmbedFiles)
+embed_files("${PROJECT_SOURCE_DIR}/shaders/*.*" "${CMAKE_BINARY_DIR}/shaders" Midgard Shaders)
 
 ###################
 # Midgard - Build #

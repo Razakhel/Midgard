@@ -15,6 +15,10 @@ namespace {
 constexpr unsigned int terrainWidth = 512;
 constexpr unsigned int terrainDepth = 512;
 
+constexpr std::string_view fogShaderSource = {
+#include "fog.frag.embed"
+};
+
 } // namespace
 
 int main() {
@@ -73,7 +77,7 @@ int main() {
     geometryPass.addWriteTexture(depthBuffer);
     geometryPass.addWriteTexture(colorBuffer);
 
-    Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader(MIDGARD_ROOT "shaders/fog.frag"));
+    Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader::loadFromSource(fogShaderSource));
 
     fogPass.addReadTexture(depthBuffer, "uniSceneBuffers.depth");
     fogPass.addReadTexture(colorBuffer, "uniSceneBuffers.color");
