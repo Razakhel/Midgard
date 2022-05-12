@@ -362,7 +362,7 @@ if (NOT MIDGARD_BUILD_RAZ)
     set(RAZ_LIB_DIR "${RAZ_ROOT}/lib")
 
     # Visual Studio having all the configurations from within the project, CMAKE_BUILD_TYPE is unknown at generation time
-    # Adding a link directory automatically creates anoter path to which is appended the $(Configuration) macro, which contains the build type
+    # Adding a link directory automatically creates another path to which is appended the $(Configuration) macro, which contains the build type
     if (NOT MIDGARD_COMPILER_MSVC)
         set(RAZ_LIB_DIR "${RAZ_LIB_DIR}/${CMAKE_BUILD_TYPE}")
     endif ()
@@ -446,8 +446,8 @@ if (MIDGARD_USE_EMSCRIPTEN)
 
         PRIVATE
 
-        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/shaders/opengles3@shaders"
-        "SHELL:--preload-file ${RAZ_ROOT}/shaders/opengles3@shaders"
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/shaders@shaders"
+        "SHELL:--preload-file ${RAZ_ROOT}/shaders@shaders"
     )
 endif ()
 

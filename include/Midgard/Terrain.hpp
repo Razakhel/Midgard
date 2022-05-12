@@ -3,15 +3,15 @@
 #ifndef MIDGARD_TERRAIN_HPP
 #define MIDGARD_TERRAIN_HPP
 
-#include <RaZ/Utils/Image.hpp>
+#include <RaZ/Data/Image.hpp>
 
 namespace Raz { class Entity; }
 
 class Terrain {
 public:
   explicit Terrain(Raz::Entity& entity);
-  Terrain(Raz::Entity& entity, unsigned int width, unsigned int height, float heightFactor, float flatness)
-    : Terrain(entity) { generate(width, height, heightFactor, flatness); }
+  Terrain(Raz::Entity& entity, unsigned int width, unsigned int depth, float heightFactor, float flatness)
+    : Terrain(entity) { generate(width, depth, heightFactor, flatness); }
   Terrain(const Terrain&) = delete;
   Terrain(Terrain&&) noexcept = default;
 
@@ -19,7 +19,7 @@ public:
   void setFlatness(float flatness) { setParameters(m_heightFactor, flatness); }
   void setParameters(float heightFactor, float flatness);
 
-  void generate(unsigned int width, unsigned int height, float heightFactor, float flatness);
+  void generate(unsigned int width, unsigned int depth, float heightFactor, float flatness);
   const Raz::Image& computeColorMap();
   const Raz::Image& computeNormalMap();
   const Raz::Image& computeSlopeMap();

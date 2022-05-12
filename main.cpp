@@ -1,16 +1,21 @@
 #include "Midgard/Terrain.hpp"
 
 #include <RaZ/Application.hpp>
+#include <RaZ/Data/ImageFormat.hpp>
 #include <RaZ/Math/Transform.hpp>
 #include <RaZ/Render/Light.hpp>
+#include <RaZ/Render/MeshRenderer.hpp>
 #include <RaZ/Render/RenderSystem.hpp>
 #include <RaZ/Utils/Logger.hpp>
 
-using namespace std::literals;
 using namespace Raz::Literals;
 
-constexpr unsigned int terrainWidth  = 512;
-constexpr unsigned int terrainHeight = 512;
+namespace {
+
+constexpr unsigned int terrainWidth = 512;
+constexpr unsigned int terrainDepth = 512;
+
+} // namespace
 
 int main() {
   try {
@@ -27,16 +32,14 @@ int main() {
     // Rendering //
     ///////////////
 
-    auto& renderSystem = world.addSystem<Raz::RenderSystem>(1280u, 720u, "Midgard", Raz::WindowSetting::DEFAULT, 2);
-
-    Raz::RenderPass& geometryPass = renderSystem.getGeometryPass();
-    geometryPass.getProgram().setShaders(Raz::VertexShader(RAZ_ROOT + "shaders/common.vert"s),
-                                         Raz::FragmentShader(RAZ_ROOT + "shaders/cook-torrance.frag"s));
-
+    auto& renderSystem  = world.addSystem<Raz::RenderSystem>(1280u, 720u, "Midgard", Raz::WindowSetting::DEFAULT, 2);
     Raz::Window& window = renderSystem.getWindow();
 
     // Allowing to quit the application with the Escape key
     window.addKeyCallback(Raz::Keyboard::ESCAPE, [&app] (float /* deltaTime */) noexcept { app.quit(); });
+
+    // Allowing to quit the application when the close button is clicked
+    window.setCloseCallback([&app] () noexcept { app.quit(); });
 
     ///////////////////
     // Camera entity //
@@ -51,10 +54,10 @@ int main() {
     /////////
 
     Raz::Entity& light = world.addEntity();
-    light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,            // Type
-                                   Raz::Vec3f(0.f, -1.f, 1.f).normalize(), // Direction
-                                   3.f,                                    // Energy
-                                   Raz::Vec3f(1.f));                       // Color (RGB)
+    light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,             // Type
+                                   Raz::Vec3f(0.f, -1.f, -1.f).normalize(), // Direction
+                                   3.f,                                     // Energy
+                                   Raz::Vec3f(1.f));                        // Color (RGB)
     light.addComponent<Raz::Transform>();
 
     //////////////
@@ -62,14 +65,15 @@ int main() {
     //////////////
 
     Raz::RenderGraph& renderGraph = renderSystem.getRenderGraph();
+    Raz::RenderPass& geometryPass = renderGraph.getGeometryPass();
 
-    const Raz::Texture& depthBuffer = renderGraph.addTextureBuffer(window.getWidth(), window.getHeight(), Raz::ImageColorspace::DEPTH);
-    const Raz::Texture& colorBuffer = renderGraph.addTextureBuffer(window.getWidth(), window.getHeight(), Raz::ImageColorspace::RGB);
+    const Raz::TexturePtr depthBuffer = Raz::Texture::create(window.getWidth(), window.getHeight(), Raz::ImageColorspace::DEPTH);
+    const Raz::TexturePtr colorBuffer = Raz::Texture::create(window.getWidth(), window.getHeight(), Raz::ImageColorspace::RGB);
 
     geometryPass.addWriteTexture(depthBuffer);
     geometryPass.addWriteTexture(colorBuffer);
 
-    Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader(MIDGARD_ROOT + "shaders/fog.frag"s));
+    Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader(MIDGARD_ROOT "shaders/fog.frag"));
 
     fogPass.addReadTexture(depthBuffer, "uniSceneBuffers.depth");
     fogPass.addReadTexture(colorBuffer, "uniSceneBuffers.color");
@@ -82,16 +86,17 @@ int main() {
     // Terrain //
     /////////////
 
-    Terrain terrain(world.addEntity(), terrainWidth, terrainHeight, 30.f, 3.f);
+    Raz::Entity& terrainEntity = world.addEntity();
+    Terrain terrain(terrainEntity, terrainWidth, terrainDepth, 30.f, 3.f);
 
     const Raz::Image& colorMap = terrain.computeColorMap();
-    colorMap.save("colorMap.png");
+    Raz::ImageFormat::save("colorMap.png", colorMap);
 
     const Raz::Image& normalMap = terrain.computeNormalMap();
-    normalMap.save("normalMap.png");
+    Raz::ImageFormat::save("normalMap.png", normalMap);
 
     const Raz::Image& slopeMap = terrain.computeSlopeMap();
-    slopeMap.save("slopeMap.png");
+    Raz::ImageFormat::save("slopeMap.png", slopeMap);
 
     /////////////////////
     // Camera controls //
@@ -129,7 +134,7 @@ int main() {
       cameraTrans.move((10.f * deltaTime) * cameraSpeed, 0.f, 0.f);
     });
 
-    window.addMouseScrollCallback([&cameraComp] (double /* xOffset */, double yOffset) {
+    window.setMouseScrollCallback([&cameraComp] (double /* xOffset */, double yOffset) {
       const float newFov = Raz::Degreesf(cameraComp.getFieldOfView()).value + static_cast<float>(-yOffset) * 2.f;
       cameraComp.setFieldOfView(Raz::Degreesf(std::clamp(newFov, 15.f, 90.f)));
     });
@@ -138,13 +143,13 @@ int main() {
 
     window.addMouseButtonCallback(Raz::Mouse::RIGHT_CLICK, [&cameraLocked, &window] (float) {
       cameraLocked = false;
-      window.changeCursorState(Raz::Cursor::DISABLED);
+      window.setCursorState(Raz::Cursor::DISABLED);
     }, Raz::Input::ONCE, [&cameraLocked, &window] () {
       cameraLocked = true;
-      window.changeCursorState(Raz::Cursor::NORMAL);
+      window.setCursorState(Raz::Cursor::NORMAL);
     });
 
-    window.addMouseMoveCallback([&cameraLocked, &cameraTrans, &window] (double xMove, double yMove) {
+    window.setMouseMoveCallback([&cameraLocked, &cameraTrans, &window] (double xMove, double yMove) {
       if (cameraLocked)
         return;
 
@@ -166,9 +171,9 @@ int main() {
 
     overlay.addSeparator();
 
-    Raz::Texture colorTexture(colorMap, 0);
-    Raz::Texture normalTexture(normalMap, 1);
-    Raz::Texture slopeTexture(slopeMap, 2);
+    Raz::Texture colorTexture(colorMap, false);
+    Raz::Texture normalTexture(normalMap, false);
+    Raz::Texture slopeTexture(slopeMap, false);
 
     overlay.addTexture(colorTexture, 150, 150);
     overlay.addTexture(normalTexture, 150, 150);

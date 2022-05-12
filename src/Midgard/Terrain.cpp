@@ -9,13 +9,13 @@
 #include <RaZ/Utils/Logger.hpp>
 #include <RaZ/Utils/Threading.hpp>
 
+namespace {
+
 constexpr Raz::Vec3b waterColor(0, 0, 255);
 constexpr Raz::Vec3b grassColor(62, 126, 0);
 constexpr Raz::Vec3b groundColor(157, 110, 94);
 constexpr Raz::Vec3b rockColor(127, 127, 127);
 constexpr Raz::Vec3b snowColor(255, 255, 255);
-
-namespace {
 
 inline void checkParameters(float& heightFactor, float& flatness) {
   if (heightFactor <= 0.f) {
@@ -41,7 +41,14 @@ Terrain::Terrain(Raz::Entity& entity) : m_entity{ entity } {
   if (!m_entity.hasComponent<Raz::MeshRenderer>())
     m_entity.addComponent<Raz::MeshRenderer>();
 
-  m_entity.getComponent<Raz::MeshRenderer>().setMaterial(Raz::MaterialCookTorrance::create(Raz::Vec3f(1.f), 0.f, 0.f));
+  auto& meshRenderer = m_entity.getComponent<Raz::MeshRenderer>();
+
+  if (meshRenderer.getSubmeshRenderers().empty())
+    meshRenderer.addSubmeshRenderer();
+
+  Raz::Material& material = meshRenderer.setMaterial(Raz::Material(Raz::MaterialType::COOK_TORRANCE));
+  material.setAttribute(0.f, "uniMaterial.metallicFactor");
+  material.setAttribute(0.f, "uniMaterial.roughnessFactor");
 }
 
 void Terrain::setParameters(float heightFactor, float flatness) {
@@ -143,8 +150,8 @@ const Raz::Image& Terrain::computeColorMap() {
     }
   });
 
-  auto& material = static_cast<Raz::MaterialCookTorrance&>(*m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front());
-  material.setBaseColorMap(Raz::Texture::create(m_colorMap, 0));
+  Raz::Material& material = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front();
+  material.setTexture(Raz::Texture::create(m_colorMap), "uniMaterial.baseColorMap");
 
   return m_colorMap;
 }
@@ -233,7 +240,7 @@ void Terrain::computeNormals() {
 //      //           v
 //      //         botDir
 //
-//      Raz::Vertex& midVertex = vertices[depthStride + i];
+//      Raz::Vertex& midVertex    = vertices[depthStride + i];
 //      const Raz::Vec3f topDir   = topPos - midVertex.position;
 //      const Raz::Vec3f leftDir  = leftPos - midVertex.position;
 //      const Raz::Vec3f rightDir = rightPos - midVertex.position;
