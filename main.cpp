@@ -1,4 +1,4 @@
-#include "Midgard/Terrain.hpp"
+#include "Midgard/StaticTerrain.hpp"
 
 #include <RaZ/Application.hpp>
 #include <RaZ/Data/ImageFormat.hpp>
@@ -90,16 +90,15 @@ int main() {
     // Terrain //
     /////////////
 
-    Raz::Entity& terrainEntity = world.addEntity();
-    Terrain terrain(terrainEntity, terrainWidth, terrainDepth, 30.f, 3.f);
+    Raz::Entity& staticTerrainEntity = world.addEntity();
+    StaticTerrain staticTerrain(staticTerrainEntity, terrainWidth, terrainDepth, 30.f, 3.f);
 
-    const Raz::Image& colorMap = terrain.computeColorMap();
+    const Raz::Image& colorMap  = staticTerrain.computeColorMap();
+    const Raz::Image& normalMap = staticTerrain.computeNormalMap();
+    const Raz::Image& slopeMap  = staticTerrain.computeSlopeMap();
+
     Raz::ImageFormat::save("colorMap.png", colorMap);
-
-    const Raz::Image& normalMap = terrain.computeNormalMap();
     Raz::ImageFormat::save("normalMap.png", normalMap);
-
-    const Raz::Image& slopeMap = terrain.computeSlopeMap();
     Raz::ImageFormat::save("slopeMap.png", slopeMap);
 
     /////////////////////
@@ -185,16 +184,16 @@ int main() {
 
     overlay.addSeparator();
 
-    overlay.addSlider("Height factor", [&terrain, &normalTexture, &slopeTexture] (float value) {
-      terrain.setHeightFactor(value);
-      normalTexture.load(terrain.computeNormalMap());
-      slopeTexture.load(terrain.computeSlopeMap());
+    overlay.addSlider("Height factor", [&staticTerrain, &normalTexture, &slopeTexture] (float value) {
+      staticTerrain.setHeightFactor(value);
+      normalTexture.load(staticTerrain.computeNormalMap());
+      slopeTexture.load(staticTerrain.computeSlopeMap());
     }, 0.001f, 50.f, 30.f);
 
-    overlay.addSlider("Flatness", [&terrain, &normalTexture, &slopeTexture] (float value) {
-      terrain.setFlatness(value);
-      normalTexture.load(terrain.computeNormalMap());
-      slopeTexture.load(terrain.computeSlopeMap());
+    overlay.addSlider("Flatness", [&staticTerrain, &normalTexture, &slopeTexture] (float value) {
+      staticTerrain.setFlatness(value);
+      normalTexture.load(staticTerrain.computeNormalMap());
+      slopeTexture.load(staticTerrain.computeSlopeMap());
     }, 1.f, 10.f, 3.f);
 
     overlay.addSlider("Fog density", [&fogPass] (float value) {

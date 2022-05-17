@@ -3,33 +3,27 @@
 #ifndef MIDGARD_TERRAIN_HPP
 #define MIDGARD_TERRAIN_HPP
 
-#include <RaZ/Data/Image.hpp>
-
 namespace Raz { class Entity; }
 
 class Terrain {
 public:
   explicit Terrain(Raz::Entity& entity);
-  Terrain(Raz::Entity& entity, unsigned int width, unsigned int depth, float heightFactor, float flatness)
-    : Terrain(entity) { generate(width, depth, heightFactor, flatness); }
   Terrain(const Terrain&) = delete;
   Terrain(Terrain&&) noexcept = default;
 
   void setHeightFactor(float heightFactor) { setParameters(heightFactor, m_flatness); }
   void setFlatness(float flatness) { setParameters(m_heightFactor, flatness); }
-  void setParameters(float heightFactor, float flatness);
+  virtual void setParameters(float heightFactor, float flatness);
 
-  void generate(unsigned int width, unsigned int depth, float heightFactor, float flatness);
-  const Raz::Image& computeColorMap();
-  const Raz::Image& computeNormalMap();
-  const Raz::Image& computeSlopeMap();
+  virtual void generate(unsigned int width, unsigned int depth, float heightFactor, float flatness) = 0;
 
   Terrain& operator=(const Terrain&) = delete;
   Terrain& operator=(Terrain&&) noexcept = delete;
 
-private:
-  void computeNormals();
-  void remapVertices(float newHeightFactor, float newFlatness);
+  virtual ~Terrain() = default;
+
+protected:
+  static void checkParameters(float& heightFactor, float& flatness);
 
   Raz::Entity& m_entity;
 
@@ -38,10 +32,6 @@ private:
   float m_heightFactor {};
   float m_flatness {};
   float m_invFlatness {};
-
-  Raz::Image m_colorMap {};
-  Raz::Image m_normalMap {};
-  Raz::Image m_slopeMap {};
 };
 
 #endif // MIDGARD_TERRAIN_HPP
