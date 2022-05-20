@@ -1,4 +1,7 @@
 #include "Midgard/StaticTerrain.hpp"
+#if !defined(USE_OPENGL_ES)
+#include "Midgard/DynamicTerrain.hpp"
+#endif
 
 #include <RaZ/Application.hpp>
 #include <RaZ/Data/ImageFormat.hpp>
@@ -90,6 +93,11 @@ int main() {
     // Terrain //
     /////////////
 
+#if !defined(USE_OPENGL_ES)
+      Raz::Entity& dynamicTerrainEntity = world.addEntity();
+      DynamicTerrain dynamicTerrain(dynamicTerrainEntity, terrainWidth, terrainDepth, 30.f, 3.f);
+#endif
+
     Raz::Entity& staticTerrainEntity = world.addEntity();
     StaticTerrain staticTerrain(staticTerrainEntity, terrainWidth, terrainDepth, 30.f, 3.f);
 
@@ -174,23 +182,45 @@ int main() {
 
     overlay.addSeparator();
 
+#if !defined(USE_OPENGL_ES)
+    Raz::OverlayTexture& dynamicNoiseTexture = overlay.addTexture(*dynamicTerrain.getNoiseMap(), 150, 150);
+#endif
+
     Raz::Texture colorTexture(colorMap, false);
     Raz::Texture normalTexture(normalMap, false);
     Raz::Texture slopeTexture(slopeMap, false);
 
-    overlay.addTexture(colorTexture, 150, 150);
-    overlay.addTexture(normalTexture, 150, 150);
-    overlay.addTexture(slopeTexture, 150, 150);
+    Raz::OverlayTexture& staticColorTexture  = overlay.addTexture(colorTexture, 150, 150);
+    Raz::OverlayTexture& staticNormalTexture = overlay.addTexture(normalTexture, 150, 150);
+    Raz::OverlayTexture& staticSlopeTexture  = overlay.addTexture(slopeTexture, 150, 150);
 
     overlay.addSeparator();
 
-    overlay.addSlider("Height factor", [&staticTerrain, &normalTexture, &slopeTexture] (float value) {
+#if !defined(USE_OPENGL_ES)
+    Raz::OverlaySlider& dynamicNoiseMapFactorSlider = overlay.addSlider("Noise map factor", [&dynamicTerrain] (float value) {
+      dynamicTerrain.computeNoiseMap(value);
+    }, 0.001f, 0.1f, 0.01f);
+
+    Raz::OverlaySlider& dynamicMinTessLevelSlider = overlay.addSlider("Min tess. level", [&dynamicTerrain] (float value) {
+      dynamicTerrain.setMinTessellationLevel(value);
+    }, 0.001f, 64.f, 12.f);
+
+    Raz::OverlaySlider& dynamicHeightFactorSlider = overlay.addSlider("Height factor", [&dynamicTerrain] (float value) {
+      dynamicTerrain.setHeightFactor(value);
+    }, 0.001f, 50.f, 30.f);
+
+    Raz::OverlaySlider& dynamicFlatnessSlider = overlay.addSlider("Flatness", [&dynamicTerrain] (float value) {
+      dynamicTerrain.setFlatness(value);
+    }, 1.f, 10.f, 3.f);
+#endif
+
+    Raz::OverlaySlider& staticHeightFactorSlider = overlay.addSlider("Height factor", [&staticTerrain, &normalTexture, &slopeTexture] (float value) {
       staticTerrain.setHeightFactor(value);
       normalTexture.load(staticTerrain.computeNormalMap());
       slopeTexture.load(staticTerrain.computeSlopeMap());
     }, 0.001f, 50.f, 30.f);
 
-    overlay.addSlider("Flatness", [&staticTerrain, &normalTexture, &slopeTexture] (float value) {
+    Raz::OverlaySlider& staticFlatnessSlider = overlay.addSlider("Flatness", [&staticTerrain, &normalTexture, &slopeTexture] (float value) {
       staticTerrain.setFlatness(value);
       normalTexture.load(staticTerrain.computeNormalMap());
       slopeTexture.load(staticTerrain.computeSlopeMap());
@@ -199,6 +229,48 @@ int main() {
     overlay.addSlider("Fog density", [&fogPass] (float value) {
       fogPass.getProgram().sendUniform("uniFogDensity", value);
     }, 0.f, 1.f, 0.1f);
+
+    overlay.addSeparator();
+
+#if !defined(USE_OPENGL_ES)
+    overlay.addCheckbox("Dynamic terrain", [&] () noexcept {
+      dynamicTerrainEntity.enable();
+      dynamicNoiseTexture.enable();
+      dynamicNoiseMapFactorSlider.enable();
+      dynamicMinTessLevelSlider.enable();
+      dynamicHeightFactorSlider.enable();
+      dynamicFlatnessSlider.enable();
+
+      staticTerrainEntity.disable();
+      staticColorTexture.disable();
+      staticNormalTexture.disable();
+      staticSlopeTexture.disable();
+      staticHeightFactorSlider.disable();
+      staticFlatnessSlider.disable();
+    }, [&] () noexcept {
+      staticTerrainEntity.enable();
+      staticColorTexture.enable();
+      staticNormalTexture.enable();
+      staticSlopeTexture.enable();
+      staticHeightFactorSlider.enable();
+      staticFlatnessSlider.enable();
+
+      dynamicTerrainEntity.disable();
+      dynamicNoiseTexture.disable();
+      dynamicNoiseMapFactorSlider.disable();
+      dynamicMinTessLevelSlider.disable();
+      dynamicHeightFactorSlider.disable();
+      dynamicFlatnessSlider.disable();
+    }, true);
+
+    // Disabling all static elements at first, since we want the dynamic terrain to be used by default
+    staticTerrainEntity.disable();
+    staticColorTexture.disable();
+    staticNormalTexture.disable();
+    staticSlopeTexture.disable();
+    staticHeightFactorSlider.disable();
+    staticFlatnessSlider.disable();
+#endif
 
     overlay.addSeparator();
 

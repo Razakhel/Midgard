@@ -349,6 +349,17 @@ file(
     ${MIDGARD_SRC}
 )
 
+# The dynamic terrain uses tessellation shaders which are unavailable with OpenGL ES, used by Emscripten; removing the files to avoid using it
+if (MIDGARD_USE_EMSCRIPTEN)
+    list(
+        REMOVE_ITEM
+        MIDGARD_FILES
+
+        src/Midgard/DynamicTerrain.cpp
+        include/Midgard/DynamicTerrain.hpp
+    )
+endif ()
+
 #######################
 # Midgard - RaZ usage #
 #######################
