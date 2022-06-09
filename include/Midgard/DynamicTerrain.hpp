@@ -13,7 +13,7 @@ public:
   explicit DynamicTerrain(Raz::Entity& entity);
   DynamicTerrain(Raz::Entity& entity, unsigned int width, unsigned int depth, float heightFactor, float flatness, float minTessLevel = 12.f);
 
-  const Raz::TexturePtr& getNoiseMap() const noexcept { return m_noiseMap; }
+  const Raz::Texture2DPtr& getNoiseMap() const noexcept { return m_noiseMap; }
 
   void setMinTessellationLevel(float minTessLevel) { setParameters(minTessLevel, m_heightFactor, m_flatness); }
   void setParameters(float heightFactor, float flatness) override { setParameters(m_minTessLevel, heightFactor, flatness); }
@@ -31,14 +31,14 @@ public:
   /// \param heightFactor Height factor to apply to vertices.
   /// \param flatness Flatness of the terrain.
   /// \param minTessLevel Minimal tessellation level to render the terrain with.
-  void generate(unsigned int width, unsigned int depth, float heightFactor, float flatness, float minTessLevel) ;
-  const Raz::TexturePtr& computeNoiseMap(float factor);
+  void generate(unsigned int width, unsigned int depth, float heightFactor, float flatness, float minTessLevel);
+  const Raz::Texture2DPtr& computeNoiseMap(float factor);
 
 private:
   float m_minTessLevel {};
 
   Raz::ComputeShaderProgram m_noiseProgram {};
-  Raz::TexturePtr m_noiseMap {};
+  Raz::Texture2DPtr m_noiseMap {};
 };
 
 #endif // MIDGARD_DYNAMICTERRAIN_HPP

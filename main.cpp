@@ -6,6 +6,7 @@
 #include <RaZ/Application.hpp>
 #include <RaZ/Data/ImageFormat.hpp>
 #include <RaZ/Math/Transform.hpp>
+#include <RaZ/Render/Camera.hpp>
 #include <RaZ/Render/Light.hpp>
 #include <RaZ/Render/MeshRenderer.hpp>
 #include <RaZ/Render/RenderSystem.hpp>
@@ -64,7 +65,7 @@ int main() {
     light.addComponent<Raz::Light>(Raz::LightType::DIRECTIONAL,             // Type
                                    Raz::Vec3f(0.f, -1.f, -1.f).normalize(), // Direction
                                    3.f,                                     // Energy
-                                   Raz::Vec3f(1.f));                        // Color (RGB)
+                                   Raz::ColorPreset::White);                // Color (RGB)
     light.addComponent<Raz::Transform>();
 
     //////////////
@@ -74,13 +75,20 @@ int main() {
     Raz::RenderGraph& renderGraph = renderSystem.getRenderGraph();
     Raz::RenderPass& geometryPass = renderGraph.getGeometryPass();
 
-    const Raz::TexturePtr depthBuffer = Raz::Texture::create(window.getWidth(), window.getHeight(), Raz::ImageColorspace::DEPTH);
-    const Raz::TexturePtr colorBuffer = Raz::Texture::create(window.getWidth(), window.getHeight(), Raz::ImageColorspace::RGB);
+    const Raz::Texture2DPtr depthBuffer = Raz::Texture2D::create(window.getWidth(), window.getHeight(), Raz::TextureColorspace::DEPTH);
+    const Raz::Texture2DPtr colorBuffer = Raz::Texture2D::create(window.getWidth(), window.getHeight(), Raz::TextureColorspace::RGB);
 
-    geometryPass.addWriteTexture(depthBuffer);
-    geometryPass.addWriteTexture(colorBuffer);
+#if !defined(USE_OPENGL_ES)
+    if (Raz::Renderer::checkVersion(4, 3)) {
+      Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, depthBuffer->getIndex(), "Depth buffer");
+      Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, colorBuffer->getIndex(), "Color buffer");
+    }
+#endif
 
-    Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader::loadFromSource(fogShaderSource));
+    geometryPass.setWriteDepthTexture(depthBuffer);
+    geometryPass.addWriteColorTexture(colorBuffer, 0);
+
+    Raz::RenderPass& fogPass = renderGraph.addNode(Raz::FragmentShader::loadFromSource(fogShaderSource), "Fog");
 
     fogPass.addReadTexture(depthBuffer, "uniSceneBuffers.depth");
     fogPass.addReadTexture(colorBuffer, "uniSceneBuffers.color");
@@ -105,9 +113,11 @@ int main() {
     const Raz::Image& normalMap = staticTerrain.computeNormalMap();
     const Raz::Image& slopeMap  = staticTerrain.computeSlopeMap();
 
+#if !defined(USE_OPENGL_ES)
     Raz::ImageFormat::save("colorMap.png", colorMap);
     Raz::ImageFormat::save("normalMap.png", normalMap);
     Raz::ImageFormat::save("slopeMap.png", slopeMap);
+#endif
 
     /////////////////////
     // Camera controls //
@@ -128,15 +138,13 @@ int main() {
       const float moveVal = (-10.f * deltaTime) * cameraSpeed;
 
       cameraTrans.move(0.f, 0.f, moveVal);
-      cameraComp.setOrthoBoundX(cameraComp.getOrthoBoundX() + moveVal);
-      cameraComp.setOrthoBoundY(cameraComp.getOrthoBoundY() + moveVal);
+      cameraComp.setOrthographicBound(cameraComp.getOrthographicBound() + moveVal);
     });
     window.addKeyCallback(Raz::Keyboard::S, [&cameraTrans, &cameraComp, &cameraSpeed] (float deltaTime) {
       const float moveVal = (10.f * deltaTime) * cameraSpeed;
 
       cameraTrans.move(0.f, 0.f, moveVal);
-      cameraComp.setOrthoBoundX(cameraComp.getOrthoBoundX() + moveVal);
-      cameraComp.setOrthoBoundY(cameraComp.getOrthoBoundY() + moveVal);
+      cameraComp.setOrthographicBound(cameraComp.getOrthographicBound() + moveVal);
     });
     window.addKeyCallback(Raz::Keyboard::A, [&cameraTrans, &cameraSpeed] (float deltaTime) {
       cameraTrans.move((-10.f * deltaTime) * cameraSpeed, 0.f, 0.f);
@@ -186,9 +194,9 @@ int main() {
     Raz::OverlayTexture& dynamicNoiseTexture = overlay.addTexture(*dynamicTerrain.getNoiseMap(), 150, 150);
 #endif
 
-    Raz::Texture colorTexture(colorMap, false);
-    Raz::Texture normalTexture(normalMap, false);
-    Raz::Texture slopeTexture(slopeMap, false);
+    Raz::Texture2D colorTexture(colorMap, false);
+    Raz::Texture2D normalTexture(normalMap, false);
+    Raz::Texture2D slopeTexture(slopeMap, false);
 
     Raz::OverlayTexture& staticColorTexture  = overlay.addTexture(colorTexture, 150, 150);
     Raz::OverlayTexture& staticNormalTexture = overlay.addTexture(normalTexture, 150, 150);

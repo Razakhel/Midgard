@@ -3,6 +3,7 @@
 #include <RaZ/Entity.hpp>
 #include <RaZ/Data/Mesh.hpp>
 #include <RaZ/Render/MeshRenderer.hpp>
+#include <RaZ/Render/Renderer.hpp>
 #include <RaZ/Utils/Logger.hpp>
 
 namespace {
@@ -16,7 +17,7 @@ constexpr std::string_view tessEvalSource = {
 };
 
 constexpr std::string_view noiseCompSource = {
-#include "perlin_noise.comp.embed"
+#include "perlin_noise_2d.comp.embed"
 };
 
 inline void checkParameters(float& minTessLevel) {
@@ -29,21 +30,19 @@ inline void checkParameters(float& minTessLevel) {
 } // namespace
 
 DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
-  Raz::Material& material = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front();
-
-  Raz::RenderShaderProgram& terrainProgram = material.getProgram();
+  Raz::RenderShaderProgram& terrainProgram = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
   terrainProgram.setTessellationControlShader(Raz::TessellationControlShader::loadFromSource(tessCtrlSource));
   terrainProgram.setTessellationEvaluationShader(Raz::TessellationEvaluationShader::loadFromSource(tessEvalSource));
   terrainProgram.link();
 
   m_noiseProgram.setShader(Raz::ComputeShader::loadFromSource(noiseCompSource));
-  m_noiseMap = Raz::Texture::create(1024, 1024, Raz::ImageColorspace::GRAY, Raz::ImageDataType::FLOAT);
+  m_noiseProgram.use();
+  m_noiseProgram.sendUniform("uniOctaveCount", 8);
 
-  material.setTexture(m_noiseMap, "uniNoiseMap");
-
-  m_noiseMap->bind();
+  m_noiseMap = Raz::Texture2D::create(1024, 1024, Raz::TextureColorspace::GRAY, Raz::TextureDataType::FLOAT16);
   Raz::Renderer::bindImageTexture(0, m_noiseMap->getIndex(), 0, false, 0, Raz::ImageAccess::WRITE, Raz::ImageInternalFormat::R16F);
-  m_noiseMap->unbind();
+
+  terrainProgram.setTexture(m_noiseMap, "uniNoiseMap");
 
   computeNoiseMap(0.01f);
 }
@@ -92,13 +91,13 @@ void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heig
   std::vector<Raz::Vertex>& vertices = mesh.getSubmeshes().front().getVertices();
   vertices.resize(patchCount * patchCount * 4);
 
-  for (int widthPatchIndex = 0; widthPatchIndex < patchCount; ++widthPatchIndex) {
-    const float patchStartX = -static_cast<float>(width / 2) + strideX * static_cast<float>(widthPatchIndex);
+  for (std::size_t widthPatchIndex = 0; widthPatchIndex < patchCount; ++widthPatchIndex) {
+    const float patchStartX = -static_cast<float>(width) * 0.5f + strideX * static_cast<float>(widthPatchIndex);
     const float patchStartU = strideU * static_cast<float>(widthPatchIndex);
     const std::size_t finalWidthPatchIndex = widthPatchIndex * patchCount;
 
-    for (int depthPatchIndex = 0; depthPatchIndex < patchCount; ++depthPatchIndex) {
-      const float patchStartZ = -static_cast<float>(depth / 2) + strideZ * static_cast<float>(depthPatchIndex);
+    for (std::size_t depthPatchIndex = 0; depthPatchIndex < patchCount; ++depthPatchIndex) {
+      const float patchStartZ = -static_cast<float>(depth) * 0.5f + strideZ * static_cast<float>(depthPatchIndex);
       const float patchStartV = strideV * static_cast<float>(depthPatchIndex);
       const std::size_t finalPatchIndex = (finalWidthPatchIndex + depthPatchIndex) * 4;
 
@@ -127,9 +126,9 @@ void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heig
   setParameters(minTessLevel, heightFactor, flatness);
 }
 
-const Raz::TexturePtr& DynamicTerrain::computeNoiseMap(float factor) {
+const Raz::Texture2DPtr& DynamicTerrain::computeNoiseMap(float factor) {
   m_noiseProgram.use();
-  m_noiseProgram.sendUniform("uniFactor", factor);
+  m_noiseProgram.sendUniform("uniNoiseFactor", factor);
   m_noiseProgram.execute(1024, 1024);
 
   return m_noiseMap;

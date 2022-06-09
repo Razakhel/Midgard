@@ -216,6 +216,7 @@ elseif (MIDGARD_COMPILER_CLANG)
         -Wno-global-constructors
         -Wno-mismatched-tags
         -Wno-missing-braces
+        -Wno-newline-eof
         -Wno-padded
         -Wno-reserved-id-macro
         -Wno-sign-conversion
@@ -355,8 +356,8 @@ if (MIDGARD_USE_EMSCRIPTEN)
         REMOVE_ITEM
         MIDGARD_FILES
 
-        src/Midgard/DynamicTerrain.cpp
-        include/Midgard/DynamicTerrain.hpp
+        "${PROJECT_SOURCE_DIR}/src/Midgard/DynamicTerrain.cpp"
+        "${PROJECT_SOURCE_DIR}/include/Midgard/DynamicTerrain.hpp"
     )
 endif ()
 

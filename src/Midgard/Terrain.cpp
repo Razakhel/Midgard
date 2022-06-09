@@ -21,9 +21,7 @@ Terrain::Terrain(Raz::Entity& entity) : m_entity{ entity } {
   if (meshRenderer.getSubmeshRenderers().empty())
     meshRenderer.addSubmeshRenderer();
 
-  Raz::Material& material = meshRenderer.setMaterial(Raz::Material(Raz::MaterialType::COOK_TORRANCE));
-  material.setAttribute(0.f, "uniMaterial.metallicFactor");
-  material.setAttribute(0.f, "uniMaterial.roughnessFactor");
+  meshRenderer.setMaterial(Raz::Material(Raz::MaterialType::COOK_TORRANCE)).getProgram().setAttribute(0.f, Raz::MaterialAttribute::Roughness);
 }
 
 void Terrain::setParameters(float heightFactor, float flatness) {

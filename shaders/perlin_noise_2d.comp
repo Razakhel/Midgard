@@ -1,8 +1,8 @@
 layout(local_size_x = 1, local_size_y = 1, local_size_x = 1) in;
 
-layout(r16f, binding = 0) uniform image2D uniNoiseMap;
-uniform float uniFactor    = 0.01;
-uniform int uniOctaveCount = 8;
+layout(r16f, binding = 0) uniform writeonly image2D uniNoiseMap;
+uniform float uniNoiseFactor = 0.01;
+uniform int uniOctaveCount   = 1;
 
 const int permutations[512] = int[](
   151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142,
@@ -42,11 +42,11 @@ float smootherstep(float value) {
   return value * value * value * (value * (value * 6.0 - 15.0) + 10.0);
 }
 
-vec2 getGradient2D(int x, int y) {
+vec2 recoverGradient2D(int x, int y) {
   return gradients2D[permutations[permutations[x] + y] % gradients2D.length()];
 }
 
-float perlin(vec2 coords) {
+float computePerlin(vec2 coords) {
   // Recovering integer coordinates on the quad
   //
   //  y0+1______x0+1/y0+1
@@ -61,10 +61,10 @@ float perlin(vec2 coords) {
   int y0 = intY & 255;
 
   // Recovering pseudo-random gradients at each corner of the quad
-  vec2 botLeftGrad  = getGradient2D(x0,     y0    );
-  vec2 botRightGrad = getGradient2D(x0 + 1, y0    );
-  vec2 topLeftGrad  = getGradient2D(x0,     y0 + 1);
-  vec2 topRightGrad = getGradient2D(x0 + 1, y0 + 1);
+  vec2 leftBotGrad  = recoverGradient2D(x0,     y0    );
+  vec2 rightBotGrad = recoverGradient2D(x0 + 1, y0    );
+  vec2 leftTopGrad  = recoverGradient2D(x0,     y0 + 1);
+  vec2 rightTopGrad = recoverGradient2D(x0 + 1, y0 + 1);
 
   // Computing the distance to the coordinates
   //  _____________
@@ -77,27 +77,27 @@ float perlin(vec2 coords) {
   float xWeight = coords.x - float(intX);
   float yWeight = coords.y - float(intY);
 
-  float botLeftDot  = dot(vec2(xWeight,       yWeight      ), botLeftGrad);
-  float botRightDot = dot(vec2(xWeight - 1.0, yWeight      ), botRightGrad);
-  float topLeftDot  = dot(vec2(xWeight,       yWeight - 1.0), topLeftGrad);
-  float topRightDot = dot(vec2(xWeight - 1.0, yWeight - 1.0), topRightGrad);
+  float leftBotDot  = dot(vec2(xWeight,       yWeight      ), leftBotGrad);
+  float rightBotDot = dot(vec2(xWeight - 1.0, yWeight      ), rightBotGrad);
+  float leftTopDot  = dot(vec2(xWeight,       yWeight - 1.0), leftTopGrad);
+  float rightTopDot = dot(vec2(xWeight - 1.0, yWeight - 1.0), rightTopGrad);
 
   float smoothX = smootherstep(xWeight);
   float smoothY = smootherstep(yWeight);
 
-  float botCoeff = mix(botLeftDot, botRightDot, smoothX);
-  float topCoeff = mix(topLeftDot, topRightDot, smoothX);
+  float botCoeff = mix(leftBotDot, rightBotDot, smoothX);
+  float topCoeff = mix(leftTopDot, rightTopDot, smoothX);
 
   return mix(botCoeff, topCoeff, smoothY);
 }
 
-float fbm(vec2 coords, int octaveCount) {
+float computeFbm(vec2 coords, int octaveCount) {
   float frequency = 1.0;
   float amplitude = 1.0;
   float total     = 0.0;
 
   for (int i = 0; i < octaveCount; ++i) {
-    total += perlin(coords * frequency) * amplitude;
+    total += computePerlin(coords * frequency) * amplitude;
 
     frequency *= 2.0;
     amplitude *= 0.5;
@@ -107,7 +107,8 @@ float fbm(vec2 coords, int octaveCount) {
 }
 
 void main() {
+  float noise = computeFbm(vec2(gl_GlobalInvocationID.xy) * uniNoiseFactor, uniOctaveCount);
+
   ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);
-  float noise       = fbm(vec2(gl_GlobalInvocationID.xy) * uniFactor, uniOctaveCount);
   imageStore(uniNoiseMap, pixelCoords, vec4(vec3(noise), 1.0));
 }

@@ -44,16 +44,16 @@ void StaticTerrain::generate(unsigned int width, unsigned int depth, float heigh
   std::vector<Raz::Vertex>& vertices = mesh.getSubmeshes().front().getVertices();
   vertices.resize(m_width * m_depth);
 
-  Raz::Threading::parallelize(vertices, [this, &vertices] (const Raz::Threading::IndexRange& range) noexcept {
+  Raz::Threading::parallelize(0, vertices.size(), [this, &vertices] (const Raz::Threading::IndexRange& range) noexcept {
     for (std::size_t i = range.beginIndex; i < range.endIndex; ++i) {
       const auto xCoord = static_cast<float>(i % m_width);
       const auto yCoord = static_cast<float>(i / m_width);
 
-      // float noiseValue = Raz::PerlinNoise::get2D(xCoord / 1000.f, yCoord / 1000.f, 8, true);
-      // noiseValue       = Raz::PerlinNoise::get2D(xCoord / 1000.f + noiseValue, yCoord / 1000.f + noiseValue, 8, true);
-      // noiseValue       = Raz::PerlinNoise::get2D(xCoord / 1000.f + noiseValue, yCoord / 1000.f + noiseValue, 8, true);
+      // float noiseValue = Raz::PerlinNoise::compute2D(xCoord / 1000.f, yCoord / 1000.f, 8, true);
+      // noiseValue       = Raz::PerlinNoise::compute2D(xCoord / 1000.f + noiseValue, yCoord / 1000.f + noiseValue, 8, true);
+      // noiseValue       = Raz::PerlinNoise::compute2D(xCoord / 1000.f + noiseValue, yCoord / 1000.f + noiseValue, 8, true);
 
-      float noiseValue = Raz::PerlinNoise::get2D(xCoord / 100.f, yCoord / 100.f, 8, true);
+      float noiseValue = Raz::PerlinNoise::compute2D(xCoord / 100.f, yCoord / 100.f, 8, true);
       noiseValue       = std::pow(noiseValue, m_flatness);
 
       const Raz::Vec2f scaledCoords = (Raz::Vec2f(xCoord, yCoord) - static_cast<float>(m_width) * 0.5f) * 0.5f;
@@ -70,11 +70,11 @@ void StaticTerrain::generate(unsigned int width, unsigned int depth, float heigh
 //    for (unsigned int i = 0; i < m_width; ++i) {
 //      Raz::Vec2f coords(static_cast<float>(i), static_cast<float>(j));
 //
-//      // float noiseValue = Raz::PerlinNoise::get2D(coords.x() / 1000.f, coords.y() / 1000.f, 8, true);
-//      // noiseValue       = Raz::PerlinNoise::get2D(coords.x() / 1000.f + noiseValue, coords.y() / 1000.f + noiseValue, 8, true);
-//      // noiseValue       = Raz::PerlinNoise::get2D(coords.x() / 1000.f + noiseValue, coords.y() / 1000.f + noiseValue, 8, true);
+//      // float noiseValue = Raz::PerlinNoise::compute2D(coords.x() / 1000.f, coords.y() / 1000.f, 8, true);
+//      // noiseValue       = Raz::PerlinNoise::compute2D(coords.x() / 1000.f + noiseValue, coords.y() / 1000.f + noiseValue, 8, true);
+//      // noiseValue       = Raz::PerlinNoise::compute2D(coords.x() / 1000.f + noiseValue, coords.y() / 1000.f + noiseValue, 8, true);
 //
-//      float noiseValue = Raz::PerlinNoise::get2D(coords.x() / 100.f, coords.y() / 100.f, 8, true);
+//      float noiseValue = Raz::PerlinNoise::compute2D(coords.x() / 100.f, coords.y() / 100.f, 8, true);
 //      noiseValue       = std::pow(noiseValue, flatness);
 //
 //      coords = (coords - static_cast<float>(m_width) / 2.f) / 2.f;
@@ -126,7 +126,7 @@ const Raz::Image& StaticTerrain::computeColorMap() {
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
-  Raz::Threading::parallelize(vertices, [this, &vertices, imgData] (const Raz::Threading::IndexRange& range) noexcept {
+  Raz::Threading::parallelize(0, vertices.size(), [this, &vertices, imgData] (const Raz::Threading::IndexRange& range) noexcept {
     for (std::size_t i = range.beginIndex; i < range.endIndex; ++i) {
       const float noiseValue      = std::pow(vertices[i].position.y() / m_heightFactor, m_invFlatness);
       const Raz::Vec3b pixelValue = (noiseValue < 0.33f ? Raz::MathUtils::lerp(waterColor, grassColor, noiseValue * 3.f)
@@ -141,8 +141,8 @@ const Raz::Image& StaticTerrain::computeColorMap() {
     }
   });
 
-  Raz::Material& material = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front();
-  material.setTexture(Raz::Texture::create(m_colorMap), "uniMaterial.baseColorMap");
+  m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram().setTexture(Raz::Texture2D::create(m_colorMap),
+                                                                                            Raz::MaterialTexture::BaseColor);
 
   return m_colorMap;
 }
@@ -153,7 +153,7 @@ const Raz::Image& StaticTerrain::computeNormalMap() {
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
-  Raz::Threading::parallelize(vertices, [&vertices, imgData] (const Raz::Threading::IndexRange& range) noexcept {
+  Raz::Threading::parallelize(0, vertices.size(), [&vertices, imgData] (const Raz::Threading::IndexRange& range) noexcept {
     for (std::size_t i = range.beginIndex; i < range.endIndex; ++i) {
       const Raz::Vec3f& normal = vertices[i].normal;
 
@@ -251,7 +251,7 @@ void StaticTerrain::remapVertices(float newHeightFactor, float newFlatness) {
   auto& mesh = m_entity.getComponent<Raz::Mesh>();
 
   std::vector<Raz::Vertex>& vertices = mesh.getSubmeshes().front().getVertices();
-  Raz::Threading::parallelize(vertices, [this, newHeightFactor, newFlatness] (const Raz::Threading::IterRange<std::vector<Raz::Vertex>>& range) noexcept {
+  Raz::Threading::parallelize(vertices, [this, newHeightFactor, newFlatness] (const auto& range) noexcept {
     for (Raz::Vertex& vertex : range) {
       const float baseHeight = std::pow(vertex.position.y() / m_heightFactor, m_invFlatness);
       vertex.position.y()    = std::pow(baseHeight, newFlatness) * newHeightFactor;
