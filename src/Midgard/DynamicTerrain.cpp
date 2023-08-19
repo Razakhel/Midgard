@@ -20,6 +20,10 @@ constexpr std::string_view noiseCompSource = {
 #include "perlin_noise_2d.comp.embed"
 };
 
+constexpr std::string_view colorCompSource = {
+#include "terrain_color.comp.embed"
+};
+
 inline void checkParameters(float& minTessLevel) {
   if (minTessLevel <= 0.f) {
     Raz::Logger::warn("[DynamicTerrain] The minimal tessellation level can't be 0 or negative; remapping to +epsilon.");
@@ -35,23 +39,39 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
   terrainProgram.setTessellationEvaluationShader(Raz::TessellationEvaluationShader::loadFromSource(tessEvalSource));
   terrainProgram.link();
 
-  m_noiseProgram.setShader(Raz::ComputeShader::loadFromSource(noiseCompSource));
-  m_noiseProgram.use();
-  m_noiseProgram.sendUniform("uniOctaveCount", 8);
-
   m_noiseMap = Raz::Texture2D::create(1024, 1024, Raz::TextureColorspace::GRAY, Raz::TextureDataType::FLOAT16);
+  m_colorMap = Raz::Texture2D::create(1024, 1024, Raz::TextureColorspace::RGBA, Raz::TextureDataType::BYTE);
+
+#if !defined(USE_OPENGL_ES)
+  if (Raz::Renderer::checkVersion(4, 3)) {
+    Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, m_noiseMap->getIndex(), "Noise map");
+    Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, m_colorMap->getIndex(), "Color map");
+  }
+#endif
+
+  m_noiseProgram.setShader(Raz::ComputeShader::loadFromSource(noiseCompSource));
+  m_noiseProgram.setAttribute(8, "uniOctaveCount");
+  m_noiseProgram.sendAttributes();
+  m_noiseProgram.use();
   Raz::Renderer::bindImageTexture(0, m_noiseMap->getIndex(), 0, false, 0, Raz::ImageAccess::WRITE, Raz::ImageInternalFormat::R16F);
 
-  terrainProgram.setTexture(m_noiseMap, "uniNoiseMap");
+  m_colorProgram.setShader(Raz::ComputeShader::loadFromSource(colorCompSource));
+  m_colorProgram.use();
+  Raz::Renderer::bindImageTexture(0, m_noiseMap->getIndex(), 0, false, 0, Raz::ImageAccess::READ, Raz::ImageInternalFormat::R16F);
+  Raz::Renderer::bindImageTexture(1, m_colorMap->getIndex(), 0, false, 0, Raz::ImageAccess::WRITE, Raz::ImageInternalFormat::RGBA8);
+
+  terrainProgram.setTexture(m_noiseMap, "uniHeightmap");
+  terrainProgram.setTexture(m_colorMap, Raz::MaterialTexture::BaseColor);
 
   computeNoiseMap(0.01f);
+  computeColorMap();
 }
 
 DynamicTerrain::DynamicTerrain(Raz::Entity& entity, unsigned int width, unsigned int depth,
                                float heightFactor, float flatness, float minTessLevel) : DynamicTerrain(entity) {
-  Raz::RenderShaderProgram& program = entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
-  program.use();
-  program.sendUniform("uniTerrainSize", Raz::Vec2u(width, depth));
+  Raz::RenderShaderProgram& terrainProgram = entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
+  terrainProgram.setAttribute(Raz::Vec2u(width, depth), "uniTerrainSize");
+  terrainProgram.sendAttributes();
 
   DynamicTerrain::generate(width, depth, heightFactor, flatness, minTessLevel);
 }
@@ -62,11 +82,11 @@ void DynamicTerrain::setParameters(float minTessLevel, float heightFactor, float
   ::checkParameters(minTessLevel);
   m_minTessLevel = minTessLevel;
 
-  Raz::RenderShaderProgram& program = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
-  program.use();
-  program.sendUniform("uniTessLevel", m_minTessLevel);
-  program.sendUniform("uniHeightFactor", m_heightFactor);
-  program.sendUniform("uniFlatness", m_flatness);
+  Raz::RenderShaderProgram& terrainProgram = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
+  terrainProgram.setAttribute(m_minTessLevel, "uniTessLevel");
+  terrainProgram.setAttribute(m_heightFactor, "uniHeightFactor");
+  terrainProgram.setAttribute(m_flatness, "uniFlatness");
+  terrainProgram.sendAttributes();
 }
 
 void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heightFactor, float flatness, float minTessLevel) {
@@ -126,10 +146,16 @@ void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heig
   setParameters(minTessLevel, heightFactor, flatness);
 }
 
-const Raz::Texture2DPtr& DynamicTerrain::computeNoiseMap(float factor) {
-  m_noiseProgram.use();
-  m_noiseProgram.sendUniform("uniNoiseFactor", factor);
+const Raz::Texture2D& DynamicTerrain::computeNoiseMap(float factor) {
+  m_noiseProgram.setAttribute(factor, "uniNoiseFactor");
+  m_noiseProgram.sendAttributes();
   m_noiseProgram.execute(1024, 1024);
 
-  return m_noiseMap;
+  return *m_noiseMap;
+}
+
+const Raz::Texture2D& DynamicTerrain::computeColorMap() {
+  m_colorProgram.execute(1024, 1024);
+
+  return *m_colorMap;
 }

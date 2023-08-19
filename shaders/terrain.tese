@@ -8,7 +8,7 @@ struct MeshInfo {
 
 in MeshInfo tessMeshInfo[];
 
-uniform sampler2D uniNoiseMap;
+uniform sampler2D uniHeightmap;
 uniform uvec2 uniTerrainSize;
 uniform float uniFlatness     = 3.0;
 uniform float uniHeightFactor = 30.0;
@@ -28,10 +28,10 @@ vec3 computeNormalDifferences(vec2 vertUV) {
   float uStride = 1.0 / float(uniTerrainSize.x);
   float vStride = 1.0 / float(uniTerrainSize.y);
 
-  float topHeight   = pow(texture(uniNoiseMap, vertUV + vec2(     0.0, -vStride)).r, uniFlatness) * uniHeightFactor;
-  float leftHeight  = pow(texture(uniNoiseMap, vertUV + vec2(-uStride,      0.0)).r, uniFlatness) * uniHeightFactor;
-  float rightHeight = pow(texture(uniNoiseMap, vertUV + vec2( uStride,      0.0)).r, uniFlatness) * uniHeightFactor;
-  float botHeight   = pow(texture(uniNoiseMap, vertUV + vec2(     0.0,  vStride)).r, uniFlatness) * uniHeightFactor;
+  float topHeight   = pow(texture(uniHeightmap, vertUV + vec2(     0.0, -vStride)).r, uniFlatness) * uniHeightFactor;
+  float leftHeight  = pow(texture(uniHeightmap, vertUV + vec2(-uStride,      0.0)).r, uniFlatness) * uniHeightFactor;
+  float rightHeight = pow(texture(uniHeightmap, vertUV + vec2( uStride,      0.0)).r, uniFlatness) * uniHeightFactor;
+  float botHeight   = pow(texture(uniHeightmap, vertUV + vec2(     0.0,  vStride)).r, uniFlatness) * uniHeightFactor;
 
   // Replace y by 2.0-2.5 to get the same result as the cross method
   return normalize(vec3(leftHeight - rightHeight, 1.0, topHeight - botHeight));
@@ -46,15 +46,15 @@ vec3 computeNormalCross(vec3 vertPos, vec2 vertUV) {
   vec3 bottomRightPos = vertPos + vec3( 1.0, 0.0, -1.0);
   vec3 topRightPos    = vertPos + vec3( 1.0, 0.0,  1.0);
 
-  float bottomLeftNoise  = texture(uniNoiseMap, vertUV + vec2(-uStride, -vStride)).r;
-  float topLeftNoise     = texture(uniNoiseMap, vertUV + vec2(-uStride,  vStride)).r;
-  float bottomRightNoise = texture(uniNoiseMap, vertUV + vec2( uStride, -vStride)).r;
-  float topRightNoise    = texture(uniNoiseMap, vertUV + vec2( uStride,  vStride)).r;
+  float bottomLeftHeight  = texture(uniHeightmap, vertUV + vec2(-uStride, -vStride)).r;
+  float topLeftHeight     = texture(uniHeightmap, vertUV + vec2(-uStride,  vStride)).r;
+  float bottomRightHeight = texture(uniHeightmap, vertUV + vec2( uStride, -vStride)).r;
+  float topRightHeight    = texture(uniHeightmap, vertUV + vec2( uStride,  vStride)).r;
 
-  bottomLeftPos.y  += pow(bottomLeftNoise, uniFlatness) * uniHeightFactor;
-  topLeftPos.y     += pow(topLeftNoise, uniFlatness) * uniHeightFactor;
-  bottomRightPos.y += pow(bottomRightNoise, uniFlatness) * uniHeightFactor;
-  topRightPos.y    += pow(topRightNoise, uniFlatness) * uniHeightFactor;
+  bottomLeftPos.y  += pow(bottomLeftHeight, uniFlatness) * uniHeightFactor;
+  topLeftPos.y     += pow(topLeftHeight, uniFlatness) * uniHeightFactor;
+  bottomRightPos.y += pow(bottomRightHeight, uniFlatness) * uniHeightFactor;
+  topRightPos.y    += pow(topRightHeight, uniFlatness) * uniHeightFactor;
 
   vec3 bottomLeftDir  = bottomLeftPos - vertPos;
   vec3 topLeftDir     = topLeftPos - vertPos;
@@ -86,8 +86,8 @@ void main() {
   vec2 vertUV1 = mix(tessMeshInfo[2].vertTexcoords, tessMeshInfo[3].vertTexcoords, gl_TessCoord.x);
   vec2 vertUV  = mix(vertUV0, vertUV1, gl_TessCoord.y);
 
-  float midNoise = texture(uniNoiseMap, vertUV).r;
-  vertPos.y += pow(midNoise, uniFlatness) * uniHeightFactor;
+  float midHeight = texture(uniHeightmap, vertUV).r;
+  vertPos.y += pow(midHeight, uniFlatness) * uniHeightFactor;
 
   vec3 normal = computeNormalDifferences(vertUV);
   //vec3 normal = computeNormalCross(vertPos, vertUV);

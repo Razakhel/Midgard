@@ -32,7 +32,7 @@ void main() {
     float tessLevelFactor = (1.0 / distance(cameraPos, patchCentroid)) * 512.0;
 
     // Outer levels get a higher factor in order to attempt filling gaps between patches
-    // TODO: A better way must be found, like varying the level according the edges mid points
+    // TODO: A better way must be found, like making the outer level vary according to the edges' mid points
     //   See: https://www.khronos.org/opengl/wiki/Tessellation#Patch_interface_and_continuity
     gl_TessLevelOuter[0] = uniTessLevel * (tessLevelFactor * 4.0);
     gl_TessLevelOuter[1] = uniTessLevel * (tessLevelFactor * 4.0);
