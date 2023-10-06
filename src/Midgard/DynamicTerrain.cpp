@@ -8,6 +8,8 @@
 
 namespace {
 
+constexpr int heightmapSize = 1024;
+
 constexpr std::string_view tessCtrlSource = {
 #include "terrain.tesc.embed"
 };
@@ -39,8 +41,8 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
   terrainProgram.setTessellationEvaluationShader(Raz::TessellationEvaluationShader::loadFromSource(tessEvalSource));
   terrainProgram.link();
 
-  m_noiseMap = Raz::Texture2D::create(1024, 1024, Raz::TextureColorspace::GRAY, Raz::TextureDataType::FLOAT16);
-  m_colorMap = Raz::Texture2D::create(1024, 1024, Raz::TextureColorspace::RGBA, Raz::TextureDataType::BYTE);
+  m_noiseMap = Raz::Texture2D::create(heightmapSize, heightmapSize, Raz::TextureColorspace::GRAY, Raz::TextureDataType::FLOAT16);
+  m_colorMap = Raz::Texture2D::create(heightmapSize, heightmapSize, Raz::TextureColorspace::RGBA, Raz::TextureDataType::BYTE);
 
 #if !defined(USE_OPENGL_ES)
   if (Raz::Renderer::checkVersion(4, 3)) {
@@ -51,14 +53,11 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
 
   m_noiseProgram.setShader(Raz::ComputeShader::loadFromSource(noiseCompSource));
   m_noiseProgram.setAttribute(8, "uniOctaveCount");
-  m_noiseProgram.sendAttributes();
-  m_noiseProgram.use();
-  Raz::Renderer::bindImageTexture(0, m_noiseMap->getIndex(), 0, false, 0, Raz::ImageAccess::WRITE, Raz::ImageInternalFormat::R16F);
+  m_noiseProgram.setImageTexture(m_noiseMap, "uniNoiseMap", Raz::ImageTextureUsage::WRITE);
 
   m_colorProgram.setShader(Raz::ComputeShader::loadFromSource(colorCompSource));
-  m_colorProgram.use();
-  Raz::Renderer::bindImageTexture(0, m_noiseMap->getIndex(), 0, false, 0, Raz::ImageAccess::READ, Raz::ImageInternalFormat::R16F);
-  Raz::Renderer::bindImageTexture(1, m_colorMap->getIndex(), 0, false, 0, Raz::ImageAccess::WRITE, Raz::ImageInternalFormat::RGBA8);
+  m_colorProgram.setImageTexture(m_noiseMap, "uniHeightmap", Raz::ImageTextureUsage::READ);
+  m_colorProgram.setImageTexture(m_colorMap, "uniColorMap", Raz::ImageTextureUsage::WRITE);
 
   terrainProgram.setTexture(m_noiseMap, "uniHeightmap");
   terrainProgram.setTexture(m_colorMap, Raz::MaterialTexture::BaseColor);
@@ -149,13 +148,13 @@ void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heig
 const Raz::Texture2D& DynamicTerrain::computeNoiseMap(float factor) {
   m_noiseProgram.setAttribute(factor, "uniNoiseFactor");
   m_noiseProgram.sendAttributes();
-  m_noiseProgram.execute(1024, 1024);
+  m_noiseProgram.execute(heightmapSize, heightmapSize);
 
   return *m_noiseMap;
 }
 
 const Raz::Texture2D& DynamicTerrain::computeColorMap() {
-  m_colorProgram.execute(1024, 1024);
+  m_colorProgram.execute(heightmapSize, heightmapSize);
 
   return *m_colorMap;
 }

@@ -92,8 +92,9 @@ int main() {
 
     fogPass.addReadTexture(depthBuffer, "uniSceneBuffers.depth");
     fogPass.addReadTexture(colorBuffer, "uniSceneBuffers.color");
-    fogPass.getProgram().sendUniform("uniSunDir", light.getComponent<Raz::Light>().getDirection());
-    fogPass.getProgram().sendUniform("uniFogDensity", 0.1f);
+    fogPass.getProgram().setAttribute(light.getComponent<Raz::Light>().getDirection(), "uniSunDir");
+    fogPass.getProgram().setAttribute(0.1f, "uniFogDensity");
+    fogPass.getProgram().sendAttributes();
 
     geometryPass.addChildren(fogPass);
 
@@ -237,7 +238,8 @@ int main() {
     }, 1.f, 10.f, 3.f);
 
     overlay.addSlider("Fog density", [&fogPass] (float value) {
-      fogPass.getProgram().sendUniform("uniFogDensity", value);
+      fogPass.getProgram().setAttribute(value, "uniFogDensity");
+      fogPass.getProgram().sendAttributes();
     }, 0.f, 1.f, 0.1f);
 
     overlay.addSeparator();
