@@ -158,9 +158,9 @@ const Raz::Image& StaticTerrain::computeNormalMap() {
       const Raz::Vec3f& normal = vertices[i].normal;
 
       const std::size_t dataStride = i * 3;
-      imgData[dataStride]     = static_cast<uint8_t>(normal.x() * 255.f);
-      imgData[dataStride + 1] = static_cast<uint8_t>(normal.y() * 255.f);
-      imgData[dataStride + 2] = static_cast<uint8_t>(normal.z() * 255.f);
+      imgData[dataStride]     = static_cast<uint8_t>(std::max(0.f, normal.x()) * 255.f);
+      imgData[dataStride + 1] = static_cast<uint8_t>(std::max(0.f, normal.y()) * 255.f);
+      imgData[dataStride + 2] = static_cast<uint8_t>(std::max(0.f, normal.z()) * 255.f);
     }
   });
 
@@ -168,22 +168,27 @@ const Raz::Image& StaticTerrain::computeNormalMap() {
 }
 
 const Raz::Image& StaticTerrain::computeSlopeMap() {
-  m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::GRAY, Raz::ImageDataType::FLOAT);
+  m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB, Raz::ImageDataType::FLOAT);
   auto* imgData = static_cast<float*>(m_slopeMap.getDataPtr());
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 1; j < m_depth - 1; ++j) {
-    const unsigned int depthStride = j * m_width;
+    const unsigned int depthStride = j * m_width * 3;
 
     for (unsigned int i = 1; i < m_width - 1; ++i) {
       const float topHeight   = vertices[(j - 1) * m_width + i].position.y();
-      const float leftHeight  = vertices[depthStride + i - 1].position.y();
-      const float rightHeight = vertices[depthStride + i + 1].position.y();
+      const float leftHeight  = vertices[j * m_width + i - 1].position.y();
+      const float rightHeight = vertices[j * m_width + i + 1].position.y();
       const float botHeight   = vertices[(j + 1) * m_width + i].position.y();
 
-      const float length       = Raz::Vec2f(leftHeight - rightHeight, topHeight - botHeight).computeLength();
-      imgData[depthStride + i] = length * 0.5f;
+      Raz::Vec2f slopeVec(leftHeight - rightHeight, topHeight - botHeight);
+      const float slopeStrength = slopeVec.computeLength() * 0.5f;
+      slopeVec = slopeVec.normalize();
+
+      imgData[depthStride + i * 3    ] = slopeVec.x();
+      imgData[depthStride + i * 3 + 1] = slopeVec.y();
+      imgData[depthStride + i * 3 + 2] = slopeStrength;
     }
   }
 
