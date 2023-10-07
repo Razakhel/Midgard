@@ -1,0 +1,24 @@
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(r16f, binding = 0) uniform readonly restrict image2D uniHeightmap;
+layout(rgba16f, binding = 1) uniform writeonly restrict image2D uniSlopeMap;
+
+uniform float uniFlatness     = 3.0;
+uniform float uniHeightFactor = 30.0;
+
+vec2 computeSlope(ivec2 pixelCoords) {
+  float leftHeight  = pow(imageLoad(uniHeightmap, pixelCoords + ivec2(-1,  0)).r, uniFlatness) * uniHeightFactor;
+  float rightHeight = pow(imageLoad(uniHeightmap, pixelCoords + ivec2( 1,  0)).r, uniFlatness) * uniHeightFactor;
+  float topHeight   = pow(imageLoad(uniHeightmap, pixelCoords + ivec2( 0, -1)).r, uniFlatness) * uniHeightFactor;
+  float botHeight   = pow(imageLoad(uniHeightmap, pixelCoords + ivec2( 0,  1)).r, uniFlatness) * uniHeightFactor;
+
+  return vec2(leftHeight - rightHeight, topHeight - botHeight);
+}
+
+void main() {
+  ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);
+
+  vec2 slopeVec       = computeSlope(pixelCoords);
+  float slopeStrength = length(slopeVec) * 0.5;
+  imageStore(uniSlopeMap, pixelCoords, vec4(normalize(slopeVec), slopeStrength, 1.0));
+}

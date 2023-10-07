@@ -26,6 +26,10 @@ constexpr std::string_view colorCompSource = {
 #include "terrain_color.comp.embed"
 };
 
+constexpr std::string_view slopeCompSource = {
+#include "slope.comp.embed"
+};
+
 inline void checkParameters(float& minTessLevel) {
   if (minTessLevel <= 0.f) {
     Raz::Logger::warn("[DynamicTerrain] The minimal tessellation level can't be 0 or negative; remapping to +epsilon.");
@@ -43,11 +47,13 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
 
   m_noiseMap = Raz::Texture2D::create(heightmapSize, heightmapSize, Raz::TextureColorspace::GRAY, Raz::TextureDataType::FLOAT16);
   m_colorMap = Raz::Texture2D::create(heightmapSize, heightmapSize, Raz::TextureColorspace::RGBA, Raz::TextureDataType::BYTE);
+  m_slopeMap = Raz::Texture2D::create(heightmapSize, heightmapSize, Raz::TextureColorspace::RGBA, Raz::TextureDataType::FLOAT16);
 
 #if !defined(USE_OPENGL_ES)
   if (Raz::Renderer::checkVersion(4, 3)) {
     Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, m_noiseMap->getIndex(), "Noise map");
     Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, m_colorMap->getIndex(), "Color map");
+    Raz::Renderer::setLabel(Raz::RenderObjectType::TEXTURE, m_slopeMap->getIndex(), "Slope map");
   }
 #endif
 
@@ -59,10 +65,15 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
   m_colorProgram.setImageTexture(m_noiseMap, "uniHeightmap", Raz::ImageTextureUsage::READ);
   m_colorProgram.setImageTexture(m_colorMap, "uniColorMap", Raz::ImageTextureUsage::WRITE);
 
+  m_slopeProgram.setShader(Raz::ComputeShader::loadFromSource(slopeCompSource));
+  m_slopeProgram.setImageTexture(m_noiseMap, "uniHeightmap", Raz::ImageTextureUsage::READ);
+  m_slopeProgram.setImageTexture(m_slopeMap, "uniSlopeMap", Raz::ImageTextureUsage::WRITE);
+
   terrainProgram.setTexture(m_noiseMap, "uniHeightmap");
   terrainProgram.setTexture(m_colorMap, Raz::MaterialTexture::BaseColor);
 
   computeNoiseMap(0.01f);
+  computeSlopeMap();
   computeColorMap();
 }
 
@@ -86,6 +97,10 @@ void DynamicTerrain::setParameters(float minTessLevel, float heightFactor, float
   terrainProgram.setAttribute(m_heightFactor, "uniHeightFactor");
   terrainProgram.setAttribute(m_flatness, "uniFlatness");
   terrainProgram.sendAttributes();
+
+  m_slopeProgram.setAttribute(m_heightFactor, "uniHeightFactor");
+  m_slopeProgram.setAttribute(m_flatness, "uniFlatness");
+  m_slopeProgram.sendAttributes();
 }
 
 void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heightFactor, float flatness, float minTessLevel) {
@@ -157,4 +172,10 @@ const Raz::Texture2D& DynamicTerrain::computeColorMap() {
   m_colorProgram.execute(heightmapSize, heightmapSize);
 
   return *m_colorMap;
+}
+
+const Raz::Texture2D& DynamicTerrain::computeSlopeMap() {
+  m_slopeProgram.execute(heightmapSize, heightmapSize);
+
+  return *m_slopeMap;
 }

@@ -192,17 +192,18 @@ int main() {
     overlay.addSeparator();
 
 #if !defined(USE_OPENGL_ES)
-    Raz::OverlayTexture& dynamicNoiseTexture = overlay.addTexture(dynamicTerrain.getNoiseMap(), 150, 150);
-    Raz::OverlayTexture& dynamicColorTexture = overlay.addTexture(dynamicTerrain.getColorMap(), 150, 150);
+    Raz::OverlayTexture& dynamicNoiseTexture = overlay.addTexture(dynamicTerrain.getNoiseMap(), 125, 125);
+    Raz::OverlayTexture& dynamicColorTexture = overlay.addTexture(dynamicTerrain.getColorMap(), 125, 125);
+    Raz::OverlayTexture& dynamicSlopeTexture = overlay.addTexture(dynamicTerrain.getSlopeMap(), 125, 125);
 #endif
 
     Raz::Texture2D colorTexture(colorMap, false);
     Raz::Texture2D normalTexture(normalMap, false);
     Raz::Texture2D slopeTexture(slopeMap, false);
 
-    [[maybe_unused]] Raz::OverlayTexture& staticColorTexture  = overlay.addTexture(colorTexture, 150, 150);
-    [[maybe_unused]] Raz::OverlayTexture& staticNormalTexture = overlay.addTexture(normalTexture, 150, 150);
-    [[maybe_unused]] Raz::OverlayTexture& staticSlopeTexture  = overlay.addTexture(slopeTexture, 150, 150);
+    [[maybe_unused]] Raz::OverlayTexture& staticColorTexture  = overlay.addTexture(colorTexture, 125, 125);
+    [[maybe_unused]] Raz::OverlayTexture& staticNormalTexture = overlay.addTexture(normalTexture, 125, 125);
+    [[maybe_unused]] Raz::OverlayTexture& staticSlopeTexture  = overlay.addTexture(slopeTexture, 125, 125);
 
     overlay.addSeparator();
 
@@ -210,6 +211,7 @@ int main() {
     Raz::OverlaySlider& dynamicNoiseMapFactorSlider = overlay.addSlider("Noise map factor", [&dynamicTerrain] (float value) {
       dynamicTerrain.computeNoiseMap(value);
       dynamicTerrain.computeColorMap();
+      dynamicTerrain.computeSlopeMap();
     }, 0.001f, 0.1f, 0.01f);
 
     Raz::OverlaySlider& dynamicMinTessLevelSlider = overlay.addSlider("Min tess. level", [&dynamicTerrain] (float value) {
@@ -218,10 +220,12 @@ int main() {
 
     Raz::OverlaySlider& dynamicHeightFactorSlider = overlay.addSlider("Height factor", [&dynamicTerrain] (float value) {
       dynamicTerrain.setHeightFactor(value);
+      dynamicTerrain.computeSlopeMap();
     }, 0.001f, 50.f, 30.f);
 
     Raz::OverlaySlider& dynamicFlatnessSlider = overlay.addSlider("Flatness", [&dynamicTerrain] (float value) {
       dynamicTerrain.setFlatness(value);
+      dynamicTerrain.computeSlopeMap();
     }, 1.f, 10.f, 3.f);
 #endif
 
@@ -249,6 +253,7 @@ int main() {
       dynamicTerrainEntity.enable();
       dynamicNoiseTexture.enable();
       dynamicColorTexture.enable();
+      dynamicSlopeTexture.enable();
       dynamicNoiseMapFactorSlider.enable();
       dynamicMinTessLevelSlider.enable();
       dynamicHeightFactorSlider.enable();
@@ -271,6 +276,7 @@ int main() {
       dynamicTerrainEntity.disable();
       dynamicNoiseTexture.disable();
       dynamicColorTexture.disable();
+      dynamicSlopeTexture.disable();
       dynamicNoiseMapFactorSlider.disable();
       dynamicMinTessLevelSlider.disable();
       dynamicHeightFactorSlider.disable();
