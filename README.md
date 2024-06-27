@@ -14,6 +14,7 @@ More progress screenshots are available on the wiki's [milestones page](https://
 
 # Resources
 
+- Wei et al. (2007) - [Fast Hydraulic Erosion Simulation and Visualization on GPU](https://inria.hal.science/inria-00402079/document)
 - Paris et al. (2020) - [Modeling Rocky Scenery using Implicit Blocks](https://hal.archives-ouvertes.fr/hal-02926218/file/2020-rocks-author.pdf) ([code](https://github.com/aparis69/Rock-fracturing))
 - Paris et al. (2019) - [Desertscape Simulation](https://hal.archives-ouvertes.fr/hal-02273039/document) ([code](https://github.com/aparis69/Desertscapes-Simulation))
 - Peytavie et al. (2019) - [Procedural Riverscapes](https://hal.archives-ouvertes.fr/hal-02281637/document)

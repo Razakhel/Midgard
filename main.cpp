@@ -117,7 +117,7 @@ int main() {
 #if !defined(USE_OPENGL_ES)
     Raz::ImageFormat::save("colorMap.png", colorMap);
     Raz::ImageFormat::save("normalMap.png", normalMap);
-    Raz::ImageFormat::save("slopeMap.png", slopeMap);
+    Raz::ImageFormat::save("slopeMap.hdr", slopeMap);
 #endif
 
     /////////////////////

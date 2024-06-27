@@ -6,6 +6,10 @@
 #include <RaZ/Render/Renderer.hpp>
 #include <RaZ/Utils/Logger.hpp>
 
+#include <tracy/Tracy.hpp>
+#include <GL/glew.h> // Needed by TracyOpenGL.hpp
+#include <tracy/TracyOpenGL.hpp>
+
 namespace {
 
 constexpr int heightmapSize = 1024;
@@ -40,6 +44,8 @@ inline void checkParameters(float& minTessLevel) {
 } // namespace
 
 DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
+  ZoneScopedN("DynamicTerrain::DynamicTerrain");
+
   Raz::RenderShaderProgram& terrainProgram = m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
   terrainProgram.setTessellationControlShader(Raz::TessellationControlShader::loadFromSource(tessCtrlSource));
   terrainProgram.setTessellationEvaluationShader(Raz::TessellationEvaluationShader::loadFromSource(tessEvalSource));
@@ -79,6 +85,8 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity) : Terrain(entity) {
 
 DynamicTerrain::DynamicTerrain(Raz::Entity& entity, unsigned int width, unsigned int depth,
                                float heightFactor, float flatness, float minTessLevel) : DynamicTerrain(entity) {
+  ZoneScopedN("DynamicTerrain::DynamicTerrain");
+
   Raz::RenderShaderProgram& terrainProgram = entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram();
   terrainProgram.setAttribute(Raz::Vec2u(width, depth), "uniTerrainSize");
   terrainProgram.sendAttributes();
@@ -87,6 +95,8 @@ DynamicTerrain::DynamicTerrain(Raz::Entity& entity, unsigned int width, unsigned
 }
 
 void DynamicTerrain::setParameters(float minTessLevel, float heightFactor, float flatness) {
+  ZoneScopedN("DynamicTerrain::setParameters");
+
   Terrain::setParameters(heightFactor, flatness);
 
   ::checkParameters(minTessLevel);
@@ -104,6 +114,8 @@ void DynamicTerrain::setParameters(float minTessLevel, float heightFactor, float
 }
 
 void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heightFactor, float flatness, float minTessLevel) {
+  ZoneScopedN("DynamicTerrain::generate");
+
   auto& mesh = m_entity.getComponent<Raz::Mesh>();
   mesh.getSubmeshes().resize(1);
 
@@ -161,6 +173,9 @@ void DynamicTerrain::generate(unsigned int width, unsigned int depth, float heig
 }
 
 const Raz::Texture2D& DynamicTerrain::computeNoiseMap(float factor) {
+  ZoneScopedN("DynamicTerrain::computeNoiseMap");
+  TracyGpuZone("DynamicTerrain::computeNoiseMap")
+
   m_noiseProgram.setAttribute(factor, "uniNoiseFactor");
   m_noiseProgram.sendAttributes();
   m_noiseProgram.execute(heightmapSize, heightmapSize);
@@ -169,12 +184,18 @@ const Raz::Texture2D& DynamicTerrain::computeNoiseMap(float factor) {
 }
 
 const Raz::Texture2D& DynamicTerrain::computeColorMap() {
+  ZoneScopedN("DynamicTerrain::computeColorMap");
+  TracyGpuZone("DynamicTerrain::computeColorMap")
+
   m_colorProgram.execute(heightmapSize, heightmapSize);
 
   return *m_colorMap;
 }
 
 const Raz::Texture2D& DynamicTerrain::computeSlopeMap() {
+  ZoneScopedN("DynamicTerrain::computeSlopeMap");
+  TracyGpuZone("DynamicTerrain::computeSlopeMap")
+
   m_slopeProgram.execute(heightmapSize, heightmapSize);
 
   return *m_slopeMap;

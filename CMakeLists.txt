@@ -380,7 +380,7 @@ if (NOT MIDGARD_BUILD_RAZ)
     endif ()
 
     target_link_directories(Midgard PRIVATE "${RAZ_LIB_DIR}")
-    target_include_directories(Midgard PUBLIC "${RAZ_ROOT}/include")
+    target_include_directories(Midgard SYSTEM PUBLIC "${RAZ_ROOT}/include")
     target_compile_definitions(Midgard PRIVATE RAZ_USE_WINDOW) # Raz::Window is needed
 
     # Additional linking flags
@@ -434,6 +434,9 @@ else ()
         # Use RaZ's compiler flags' script
         include("${RAZ_ROOT}/cmake/CompilerFlags.cmake")
         add_compiler_flags(Midgard PRIVATE)
+
+        # Needed to use Tracy's GPU profiling
+        target_link_libraries(Midgard PRIVATE GLEW)
     else ()
         message(FATAL_ERROR "Failed to find RaZ; the submodule must be downloaded")
     endif ()

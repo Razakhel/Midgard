@@ -7,6 +7,8 @@
 #include <RaZ/Render/MeshRenderer.hpp>
 #include <RaZ/Utils/Threading.hpp>
 
+#include <tracy/Tracy.hpp>
+
 namespace {
 
 constexpr Raz::Vec3b waterColor(0, 0, 255);
@@ -18,10 +20,14 @@ constexpr Raz::Vec3b snowColor(255, 255, 255);
 } // namespace
 
 StaticTerrain::StaticTerrain(Raz::Entity& entity, unsigned int width, unsigned int depth, float heightFactor, float flatness) : StaticTerrain(entity) {
+  ZoneScopedN("StaticTerrain::StaticTerrain");
+
   StaticTerrain::generate(width, depth, heightFactor, flatness);
 }
 
 void StaticTerrain::setParameters(float heightFactor, float flatness) {
+  ZoneScopedN("StaticTerrain::setParameters");
+
   checkParameters(heightFactor, flatness);
 
   remapVertices(heightFactor, flatness);
@@ -32,6 +38,8 @@ void StaticTerrain::setParameters(float heightFactor, float flatness) {
 }
 
 void StaticTerrain::generate(unsigned int width, unsigned int depth, float heightFactor, float flatness) {
+  ZoneScopedN("StaticTerrain::generate");
+
   m_width = width;
   m_depth = depth;
   Terrain::setParameters(heightFactor, flatness);
@@ -45,6 +53,8 @@ void StaticTerrain::generate(unsigned int width, unsigned int depth, float heigh
   vertices.resize(m_width * m_depth);
 
   Raz::Threading::parallelize(0, vertices.size(), [this, &vertices] (const Raz::Threading::IndexRange& range) noexcept {
+    ZoneScopedN("StaticTerrain::generate");
+
     for (std::size_t i = range.beginIndex; i < range.endIndex; ++i) {
       const auto xCoord = static_cast<float>(i % m_width);
       const auto yCoord = static_cast<float>(i / m_width);
@@ -121,12 +131,16 @@ void StaticTerrain::generate(unsigned int width, unsigned int depth, float heigh
 }
 
 const Raz::Image& StaticTerrain::computeColorMap() {
+  ZoneScopedN("StaticTerrain::computeColorMap");
+
   m_colorMap = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB);
   auto* imgData = static_cast<uint8_t*>(m_colorMap.getDataPtr());
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   Raz::Threading::parallelize(0, vertices.size(), [this, &vertices, imgData] (const Raz::Threading::IndexRange& range) noexcept {
+    ZoneScopedN("StaticTerrain::computeColorMap");
+
     for (std::size_t i = range.beginIndex; i < range.endIndex; ++i) {
       const float noiseValue      = std::pow(vertices[i].position.y() / m_heightFactor, m_invFlatness);
       const Raz::Vec3b pixelValue = (noiseValue < 0.33f ? Raz::MathUtils::lerp(waterColor, grassColor, noiseValue * 3.f)
@@ -141,19 +155,23 @@ const Raz::Image& StaticTerrain::computeColorMap() {
     }
   });
 
-  m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram().setTexture(Raz::Texture2D::create(m_colorMap),
+  m_entity.getComponent<Raz::MeshRenderer>().getMaterials().front().getProgram().setTexture(Raz::Texture2D::create(m_colorMap, true, true),
                                                                                             Raz::MaterialTexture::BaseColor);
 
   return m_colorMap;
 }
 
 const Raz::Image& StaticTerrain::computeNormalMap() {
+  ZoneScopedN("StaticTerrain::computeNormalMap");
+
   m_normalMap = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB);
   auto* imgData = static_cast<uint8_t*>(m_normalMap.getDataPtr());
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   Raz::Threading::parallelize(0, vertices.size(), [&vertices, imgData] (const Raz::Threading::IndexRange& range) noexcept {
+    ZoneScopedN("StaticTerrain::computeNormalMap");
+
     for (std::size_t i = range.beginIndex; i < range.endIndex; ++i) {
       const Raz::Vec3f& normal = vertices[i].normal;
 
@@ -168,27 +186,23 @@ const Raz::Image& StaticTerrain::computeNormalMap() {
 }
 
 const Raz::Image& StaticTerrain::computeSlopeMap() {
-  m_slopeMap    = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB, Raz::ImageDataType::FLOAT);
-  auto* imgData = static_cast<float*>(m_slopeMap.getDataPtr());
+  ZoneScopedN("StaticTerrain::computeSlopeMap");
+
+  m_slopeMap = Raz::Image(m_width, m_depth, Raz::ImageColorspace::RGB, Raz::ImageDataType::FLOAT);
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 1; j < m_depth - 1; ++j) {
-    const unsigned int depthStride = j * m_width * 3;
-
     for (unsigned int i = 1; i < m_width - 1; ++i) {
       const float topHeight   = vertices[(j - 1) * m_width + i].position.y();
       const float leftHeight  = vertices[j * m_width + i - 1].position.y();
       const float rightHeight = vertices[j * m_width + i + 1].position.y();
       const float botHeight   = vertices[(j + 1) * m_width + i].position.y();
 
-      Raz::Vec2f slopeVec(leftHeight - rightHeight, topHeight - botHeight);
+      const Raz::Vec2f slopeVec(leftHeight - rightHeight, topHeight - botHeight);
       const float slopeStrength = slopeVec.computeLength() * 0.5f;
-      slopeVec = slopeVec.normalize();
 
-      imgData[depthStride + i * 3    ] = slopeVec.x();
-      imgData[depthStride + i * 3 + 1] = slopeVec.y();
-      imgData[depthStride + i * 3 + 2] = slopeStrength;
+      m_slopeMap.setPixel(i, j, Raz::Vec3f(slopeVec.normalize(), slopeStrength));
     }
   }
 
@@ -196,6 +210,8 @@ const Raz::Image& StaticTerrain::computeSlopeMap() {
 }
 
 void StaticTerrain::computeNormals() {
+  ZoneScopedN("StaticTerrain::computeNormals");
+
   std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
   for (unsigned int j = 1; j < m_depth - 1; ++j) {
@@ -253,10 +269,14 @@ void StaticTerrain::computeNormals() {
 }
 
 void StaticTerrain::remapVertices(float newHeightFactor, float newFlatness) {
+  ZoneScopedN("StaticTerrain::remapVertices");
+
   auto& mesh = m_entity.getComponent<Raz::Mesh>();
 
   std::vector<Raz::Vertex>& vertices = mesh.getSubmeshes().front().getVertices();
   Raz::Threading::parallelize(vertices, [this, newHeightFactor, newFlatness] (const auto& range) noexcept {
+    ZoneScopedN("StaticTerrain::remapVertices");
+
     for (Raz::Vertex& vertex : range) {
       const float baseHeight = std::pow(vertex.position.y() / m_heightFactor, m_invFlatness);
       vertex.position.y()    = std::pow(baseHeight, newFlatness) * newHeightFactor;

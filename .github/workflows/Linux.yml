@@ -18,7 +18,7 @@ jobs:
           - Release
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Pulling RaZ
       run: git submodule update --init --recursive
@@ -62,16 +62,16 @@ jobs:
     # Additional dependencies are libc & libm (located in /usr/lib*), as well as libgcc_s & libstdc++ (which would require another package)
     - name: Packaging build
       run: |
-        mkdir Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.run_id }}/ &&
-        cp -t Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.run_id }}/ \
+        mkdir Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.sha }}/ &&
+        cp -t Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.sha }}/ \
           ${{ runner.workspace }}/build-${{ matrix.compiler.c }}/Midgard \
           /usr/lib/*/libGL.so \
           /usr/lib/*/libopenal.so
-        tar -cvf Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.run_id }}.tar \
-          Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.run_id }}/
+        tar -cvf Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.sha }}.tar \
+          Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.sha }}/
 
     - name: Upload build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.run_id }}
-        path: Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.run_id }}.tar
+        name: Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.sha }}
+        path: Midgard-linux-${{ matrix.compiler.c }}-${{ matrix.build_type }}-${{ github.sha }}.tar
