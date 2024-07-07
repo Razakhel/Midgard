@@ -192,19 +192,23 @@ const Raz::Image& StaticTerrain::computeSlopeMap() {
 
   const std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
-  for (unsigned int j = 1; j < m_depth - 1; ++j) {
-    for (unsigned int i = 1; i < m_width - 1; ++i) {
-      const float topHeight   = vertices[(j - 1) * m_width + i].position.y();
-      const float leftHeight  = vertices[j * m_width + i - 1].position.y();
-      const float rightHeight = vertices[j * m_width + i + 1].position.y();
-      const float botHeight   = vertices[(j + 1) * m_width + i].position.y();
+  Raz::Threading::parallelize(1, m_depth - 1, [this, &vertices] (const Raz::Threading::IndexRange& range) noexcept {
+    ZoneScopedN("StaticTerrain::computeSlopeMap");
 
-      const Raz::Vec2f slopeVec(leftHeight - rightHeight, topHeight - botHeight);
-      const float slopeStrength = slopeVec.computeLength() * 0.5f;
+    for (std::size_t depthIndex = range.beginIndex; depthIndex < range.endIndex; ++depthIndex) {
+      for (std::size_t widthIndex = 1; widthIndex < m_width - 1; ++widthIndex) {
+        const float topHeight   = vertices[(depthIndex - 1) * m_width + widthIndex].position.y();
+        const float leftHeight  = vertices[depthIndex * m_width + widthIndex - 1].position.y();
+        const float rightHeight = vertices[depthIndex * m_width + widthIndex + 1].position.y();
+        const float botHeight   = vertices[(depthIndex + 1) * m_width + widthIndex].position.y();
 
-      m_slopeMap.setPixel(i, j, Raz::Vec3f(slopeVec.normalize(), slopeStrength));
+        const Raz::Vec2f slopeVec(leftHeight - rightHeight, topHeight - botHeight);
+        const float slopeStrength = slopeVec.computeLength() * 0.5f;
+
+        m_slopeMap.setPixel(widthIndex, depthIndex, Raz::Vec3f(slopeVec.normalize(), slopeStrength));
+      }
     }
-  }
+  });
 
   return m_slopeMap;
 }
@@ -214,58 +218,60 @@ void StaticTerrain::computeNormals() {
 
   std::vector<Raz::Vertex>& vertices = m_entity.getComponent<Raz::Mesh>().getSubmeshes().front().getVertices();
 
-  for (unsigned int j = 1; j < m_depth - 1; ++j) {
-    const unsigned int depthStride = j * m_width;
+  Raz::Threading::parallelize(1, m_depth - 1, [this, &vertices] (const Raz::Threading::IndexRange& range) noexcept {
+    ZoneScopedN("StaticTerrain::computeNormals");
 
-    for (unsigned int i = 1; i < m_width - 1; ++i) {
-      //                      topHeight (j - 1)
-      //                           x
-      //                           |
-      //                           |
-      // leftHeight (i - 1) x------X------x rightHeight (i + 1)
-      //                           |
-      //                           |
-      //                           x
-      //                    botHeight (j + 1)
+    for (std::size_t depthIndex = range.beginIndex; depthIndex < range.endIndex; ++depthIndex) {
+      const std::size_t depthStride = depthIndex * m_width;
 
-      // Using finite differences
+      for (std::size_t widthIndex = 1; widthIndex < m_width - 1; ++widthIndex) {
+        //                   topHeight (depth - 1)
+        //                             x
+        //                             |
+        // leftHeight (width - 1) x----X----x rightHeight (width + 1)
+        //                             |
+        //                             x
+        //                   botHeight (depth + 1)
 
-      const float topHeight   = vertices[(j - 1) * m_width + i].position.y();
-      const float leftHeight  = vertices[depthStride + i - 1].position.y();
-      const float rightHeight = vertices[depthStride + i + 1].position.y();
-      const float botHeight   = vertices[(j + 1) * m_width + i].position.y();
+        // Using finite differences
 
-      Raz::Vertex& midVertex = vertices[depthStride + i];
-      midVertex.normal  = Raz::Vec3f(leftHeight - rightHeight, 0.1f, topHeight - botHeight).normalize();
-      midVertex.tangent = Raz::Vec3f(midVertex.normal.z(), midVertex.normal.x(), midVertex.normal.y());
+        const float topHeight   = vertices[(depthIndex - 1) * m_width + widthIndex].position.y();
+        const float leftHeight  = vertices[depthStride + widthIndex - 1].position.y();
+        const float rightHeight = vertices[depthStride + widthIndex + 1].position.y();
+        const float botHeight   = vertices[(depthIndex + 1) * m_width + widthIndex].position.y();
 
-      // Using cross products
+        Raz::Vertex& midVertex = vertices[depthStride + widthIndex];
+        midVertex.normal  = Raz::Vec3f(leftHeight - rightHeight, 0.1f, topHeight - botHeight).normalize();
+        midVertex.tangent = Raz::Vec3f(midVertex.normal.z(), midVertex.normal.x(), midVertex.normal.y());
 
-//      const Raz::Vec3f& topPos   = vertices[(j - 1) * m_width + i].position;
-//      const Raz::Vec3f& leftPos  = vertices[depthStride + i - 1].position;
-//      const Raz::Vec3f& rightPos = vertices[depthStride + i + 1].position;
-//      const Raz::Vec3f& botPos   = vertices[(j + 1) * m_width + i].position;
+        // Using cross products
+
+//        const Raz::Vec3f& topPos   = vertices[(depthIndex - 1) * m_width + widthIndex].position;
+//        const Raz::Vec3f& leftPos  = vertices[depthStride + widthIndex - 1].position;
+//        const Raz::Vec3f& rightPos = vertices[depthStride + widthIndex + 1].position;
+//        const Raz::Vec3f& botPos   = vertices[(depthIndex + 1) * m_width + widthIndex].position;
 //
-//      //         topDir
-//      //           ^
-//      // leftDir <-|-> rightDir
-//      //           v
-//      //         botDir
+//        //         topDir
+//        //           ^
+//        // leftDir <-|-> rightDir
+//        //           v
+//        //         botDir
 //
-//      Raz::Vertex& midVertex    = vertices[depthStride + i];
-//      const Raz::Vec3f topDir   = topPos - midVertex.position;
-//      const Raz::Vec3f leftDir  = leftPos - midVertex.position;
-//      const Raz::Vec3f rightDir = rightPos - midVertex.position;
-//      const Raz::Vec3f botDir   = botPos - midVertex.position;
+//        Raz::Vertex& midVertex    = vertices[depthStride + widthIndex];
+//        const Raz::Vec3f topDir   = topPos - midVertex.position;
+//        const Raz::Vec3f leftDir  = leftPos - midVertex.position;
+//        const Raz::Vec3f rightDir = rightPos - midVertex.position;
+//        const Raz::Vec3f botDir   = botPos - midVertex.position;
 //
-//      midVertex.normal   = rightDir.cross(topDir);
-//      midVertex.normal  += topDir.cross(leftDir);
-//      midVertex.normal  += leftDir.cross(botDir);
-//      midVertex.normal  += botDir.cross(rightDir);
-//      midVertex.normal   = midVertex.normal.normalize();
-//      midVertex.tangent  = Raz::Vec3f(midVertex.normal.z(), midVertex.normal.x(), midVertex.normal.y());
+//        midVertex.normal   = rightDir.cross(topDir);
+//        midVertex.normal  += topDir.cross(leftDir);
+//        midVertex.normal  += leftDir.cross(botDir);
+//        midVertex.normal  += botDir.cross(rightDir);
+//        midVertex.normal   = midVertex.normal.normalize();
+//        midVertex.tangent  = Raz::Vec3f(midVertex.normal.z(), midVertex.normal.x(), midVertex.normal.y());
+      }
     }
-  }
+  });
 }
 
 void StaticTerrain::remapVertices(float newHeightFactor, float newFlatness) {
